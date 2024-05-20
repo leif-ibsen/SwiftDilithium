@@ -7,9 +7,10 @@
 
 import XCTest
 @testable import SwiftDilithium
-import Digest
 
 final class KAT2Test: XCTestCase {
+
+    // Test vectors from https://github.com/post-quantum-cryptography/KAT
 
     override func setUpWithError() throws {
         let url = Bundle.module.url(forResource: "kat2", withExtension: "rsp")!
@@ -19,11 +20,14 @@ final class KAT2Test: XCTestCase {
     var katTests: [Util.katTest] = []
 
     func test() throws {
-        let md = MessageDigest(.SHA2_256)
         for t in katTests {
-            let (pk, sk) = Dilithium.D2.KeyGen(t.seed)
-            XCTAssertEqual(md.digest(pk), t.pkDigest)
-            XCTAssertEqual(md.digest(sk), t.skDigest)
+            let (pk, sk) = Dilithium.D2.KeyGen(t.xi)
+            XCTAssertEqual(pk, t.pk)
+            XCTAssertEqual(sk, t.sk)
+            let sig = Dilithium.D2.Sign(sk, t.msg)
+            XCTAssertEqual(sig + t.msg, t.sm)
+            XCTAssertEqual(t.msg.count, t.mlen)
+            XCTAssertEqual(sig.count + t.msg.count, t.smlen)
         }
     }
 

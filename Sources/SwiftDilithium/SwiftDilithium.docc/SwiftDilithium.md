@@ -43,7 +43,7 @@ To use SwiftDilithium, in your project *Package.swift* file add a dependency lik
 
 ```swift
 dependencies: [
-  .package(url: "https://github.com/leif-ibsen/SwiftDilithium", from: "1.0.0"),
+  .package(url: "https://github.com/leif-ibsen/SwiftDilithium", from: "1.1.0"),
 ]
 ```
 
@@ -51,7 +51,7 @@ SwiftDilithium itself depends on the Digest package
 
 ```swift
 dependencies: [
-  .package(url: "https://github.com/leif-ibsen/Digest", from: "1.4.0"),
+  .package(url: "https://github.com/leif-ibsen/Digest", from: "1.6.0"),
 ],
 ```
 

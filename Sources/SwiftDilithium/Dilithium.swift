@@ -275,11 +275,11 @@ public struct Dilithium {
     static func BitPack(_ w: Polynomial, _ a: Int, _ b: Int) -> Bytes {
         assert(a > 0)
         assert(b > 0)
-        var z = Bytes(repeating: 0, count: Dilithium.bitlen(a + b) << 5)
-        var zi = 0
-        var bitNo = 0
         let bl = Dilithium.bitlen(a + b)
         let mask = 1 << bl - 1
+        var z = Bytes(repeating: 0, count: bl << 5)
+        var zi = 0
+        var bitNo = 0
         for i in 0 ..< 256 {
             assert(-a <= w.coef[i] && w.coef[i] <= b)
             var x = (b - w.coef[i]) & mask
@@ -406,20 +406,17 @@ public struct Dilithium {
     // [FIPS 204] - Algorithm 17
     func pkDecode(_ pk: Bytes) -> (rho: Bytes, t1: Vector) {
         assert(pk.count == 32 + self.k * (Dilithium.bitlen(Dilithium.Q - 1) - Dilithium.D) << 5)
-        let rho = Bytes(pk[0 ..< 32])
+        var pkSlice = pk.sliced()
+        let rho = pkSlice.next(32)
         var t1 = Vector(self.k)
-        var z = [Bytes](repeating: Bytes(repeating: 0, count: (Dilithium.bitlen(Dilithium.Q - 1) - Dilithium.D) << 5), count: self.k)
-        var from = 32
-        let step = (Dilithium.bitlen(Dilithium.Q - 1) - Dilithium.D) << 5
-        for i in 0 ..< z.count {
-            z[i] = Bytes(pk[from ..< from + step])
-            from += step
-        }
+        let l = (Dilithium.bitlen(Dilithium.Q - 1) - Dilithium.D) << 5
         for i in 0 ..< self.k {
-            t1.polynomial[i] = Dilithium.SimpleBitUnpack(z[i], 1 << (Dilithium.bitlen(Dilithium.Q - 1) - Dilithium.D) - 1)
+            t1.polynomial[i] = Dilithium.SimpleBitUnpack(pkSlice.next(l), 1 << (Dilithium.bitlen(Dilithium.Q - 1) - Dilithium.D) - 1)
         }
         return (rho, t1)
     }
+    
+    static let bitPackLength = 1 << (Dilithium.D - 1)
 
     // [FIPS 204] - Algorithm 18
     func skEncode(_ rho: Bytes, _ K: Bytes, _ tr: Bytes, _ s1: Vector, _ s2: Vector, _ t0: Vector) -> Bytes {
@@ -435,7 +432,7 @@ public struct Dilithium {
             sk += Dilithium.BitPack(s2.polynomial[i], self.eta, self.eta)
         }
         for i in 0 ..< self.k {
-            sk += Dilithium.BitPack(t0.polynomial[i], 1 << (Dilithium.D - 1) - 1, 1 << (Dilithium.D - 1))
+            sk += Dilithium.BitPack(t0.polynomial[i], Dilithium.bitPackLength - 1, Dilithium.bitPackLength)
         }
         return sk
     }
@@ -443,51 +440,23 @@ public struct Dilithium {
     // [FIPS 204] - Algorithm 19
     func skDecode(_ sk: Bytes) -> (rho: Bytes, K: Bytes, tr: Bytes, s1: Vector, s2: Vector, t0: Vector) {
         assert(sk.count == 128 + 32 * ((self.l + self.k) * Dilithium.bitlen(2 * self.eta) + self.k * Dilithium.D))
-        var from = 0
-        var to = 32
-        let f = Bytes(sk[from ..< to])
-        from = to
-        to += 32
-        let g = Bytes(sk[from ..< to])
-        from = to
-        to += 64
-        let h = Bytes(sk[from ..< to])
-        from = to
-        let rho = f
-        let K = g
-        let tr = h
-
-        var y = [Bytes](repeating: [], count: self.l)
-        for i in 0 ..< self.l {
-            to += Dilithium.bitlen(self.eta << 1) << 5
-            y[i] = Bytes(sk[from ..< to])
-            from = to
-        }
+        var skSlice = sk.sliced()
+        let rho = skSlice.next(32)
+        let K = skSlice.next(32)
+        let tr = skSlice.next(64)
+        let l1 = (Dilithium.bitlen(2 * self.eta)) << 5
         var s1 = Vector(self.l)
         for i in 0 ..< self.l {
-            s1.polynomial[i] = Dilithium.BitUnpack(y[i], self.eta, self.eta)
-        }
-
-        var z = [Bytes](repeating: [], count: self.k)
-        for i in 0 ..< self.k {
-            to += Dilithium.bitlen(self.eta << 1) << 5
-            z[i] = Bytes(sk[from ..< to])
-            from = to
+            s1.polynomial[i] = Dilithium.BitUnpack(skSlice.next(l1), self.eta, self.eta)
         }
         var s2 = Vector(self.k)
         for i in 0 ..< self.k {
-            s2.polynomial[i] = Dilithium.BitUnpack(z[i], self.eta, self.eta)
+            s2.polynomial[i] = Dilithium.BitUnpack(skSlice.next(l1), self.eta, self.eta)
         }
-
-        var w = [Bytes](repeating: [], count: self.k)
-        for i in 0 ..< self.k {
-            to += Dilithium.D << 5
-            w[i] = Bytes(sk[from ..< to])
-            from = to
-        }
+        let l2 = Dilithium.D << 5
         var t0 = Vector(self.k)
         for i in 0 ..< self.k {
-            t0.polynomial[i] = Dilithium.BitUnpack(w[i], 1 << (Dilithium.D - 1) - 1, 1 << (Dilithium.D - 1))
+            t0.polynomial[i] = Dilithium.BitUnpack(skSlice.next(l2), Dilithium.bitPackLength - 1, Dilithium.bitPackLength)
         }
         return (rho, K, tr, s1, s2, t0)
     }
@@ -508,31 +477,24 @@ public struct Dilithium {
     // [FIPS 204] - Algorithm 21
     func sigDecode(_ sigma: Bytes) -> (c: Bytes, z: Vector, h: Vector?) {
         assert(sigma.count == self.lambda >> 2 + self.l * (1 + Dilithium.bitlen(self.gamma1 - 1)) << 5 + self.omega + self.k)
-        var from = 0
-        var to = self.lambda >> 2
-        let w = Bytes(sigma[from ..< to])
-        from = to
-        let c = w
-        var x = [Bytes](repeating: [], count: self.l)
+        var sigmaSlice = sigma.sliced()
+        let w = sigmaSlice.next(self.lambda >> 2)
         var z = Vector(self.l)
+        let l = (1 + Dilithium.bitlen(self.gamma1 - 1)) << 5
         for i in 0 ..< self.l {
-            to += (1 + Dilithium.bitlen(self.gamma1 - 1)) << 5
-            x[i] = Bytes(sigma[from ..< to])
-            from = to
-            z.polynomial[i] = Dilithium.BitUnpack(x[i], self.gamma1 - 1, self.gamma1)
+            z.polynomial[i] = Dilithium.BitUnpack(sigmaSlice.next(l), self.gamma1 - 1, self.gamma1)
         }
-        to += self.omega + self.k
-        let y = Bytes(sigma[from ..< to])
-        let h = HintBitUnpack(y)
-        return (c, z, h)
+        let h = HintBitUnpack(sigmaSlice.next(self.omega + self.k))
+        return (w, z, h)
     }
 
     // [FIPS 204] - Algorithm 22
     func w1Encode(_  w1: Vector) -> Bytes {
         assert(w1.n == self.k)
         var w1Hat: Bytes = []
+        let l = (Dilithium.Q - 1) / (self.gamma2 << 1) - 1
         for i in 0 ..< self.k {
-            w1Hat += Dilithium.SimpleBitPack(w1.polynomial[i], (Dilithium.Q - 1) / (self.gamma2 << 1) - 1)
+            w1Hat += Dilithium.SimpleBitPack(w1.polynomial[i], l)
         }
         return w1Hat
     }

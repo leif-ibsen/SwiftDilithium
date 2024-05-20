@@ -11,6 +11,8 @@ import Digest
 
 final class KAT3Test: XCTestCase {
     
+    // Test vectors from https://github.com/post-quantum-cryptography/KAT
+
     override func setUpWithError() throws {
         let url = Bundle.module.url(forResource: "kat3", withExtension: "rsp")!
         Util.makeKatTests(&katTests, try Data(contentsOf: url))
@@ -19,11 +21,14 @@ final class KAT3Test: XCTestCase {
     var katTests: [Util.katTest] = []
     
     func test() throws {
-        let md = MessageDigest(.SHA2_256)
         for t in katTests {
-            let (pk, sk) = Dilithium.D3.KeyGen(t.seed)
-            XCTAssertEqual(md.digest(pk), t.pkDigest)
-            XCTAssertEqual(md.digest(sk), t.skDigest)
+            let (pk, sk) = Dilithium.D3.KeyGen(t.xi)
+            XCTAssertEqual(pk, t.pk)
+            XCTAssertEqual(sk, t.sk)
+            let sig = Dilithium.D3.Sign(sk, t.msg)
+            XCTAssertEqual(sig + t.msg, t.sm)
+            XCTAssertEqual(t.msg.count, t.mlen)
+            XCTAssertEqual(sig.count + t.msg.count, t.smlen)
         }
     }
 
