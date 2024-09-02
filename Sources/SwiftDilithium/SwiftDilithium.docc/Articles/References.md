@@ -4,4 +4,4 @@ Algorithms from the below document have been used in the implementation
 
 ## 
 
-[[FIPS 204]](https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.204.ipd.pdf) - Module-Lattice-Based Digital Signature Standard, August 2023
+[[FIPS 204]](https://csrc.nist.gov/pubs/fips/204/final) - Module-Lattice-Based Digital Signature Standard, August 13, 2024

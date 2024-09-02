@@ -11,27 +11,39 @@ import XCTest
 final class ExceptionTest: XCTestCase {
 
     func doTest(_ d: Dilithium) {
-        let keyBytes = Bytes(repeating: 0, count: 100)
+        let keySize = 100
+        let keyBytes = Bytes(repeating: 0, count: keySize)
         do {
             _ = try PublicKey(keyBytes: keyBytes)
             XCTFail("Expected publicKeySize exception")
-        } catch DilithiumException.publicKeySize {
+        } catch DilithiumException.publicKeySize(let value) {
+            XCTAssertEqual(value, keySize)
         } catch {
             XCTFail("Expected publicKeySize exception")
         }
         do {
             _ = try SecretKey(keyBytes: keyBytes)
             XCTFail("Expected secretKeySize exception")
-        } catch DilithiumException.secretKeySize {
+        } catch DilithiumException.secretKeySize(let value) {
+            XCTAssertEqual(value, keySize)
         } catch {
             XCTFail("Expected secretKeySize exception")
+        }
+        do {
+            let (sk, _) = d.GenerateKeyPair()
+            _ = try sk.Sign(message: [], context: Bytes(repeating: 0, count: 256))
+            XCTFail("Expected contextSize exception")
+        } catch DilithiumException.contextSize(let value) {
+            XCTAssertEqual(value, 256)
+        } catch {
+            XCTFail("Expected contextSize exception")
         }
     }
 
     func test() throws {
-        doTest(Dilithium.D2)
-        doTest(Dilithium.D3)
-        doTest(Dilithium.D5)
+        doTest(Dilithium.ML_DSA_44)
+        doTest(Dilithium.ML_DSA_65)
+        doTest(Dilithium.ML_DSA_87)
     }
 
 }

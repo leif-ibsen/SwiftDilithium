@@ -5,8 +5,10 @@
 //  Created by Leif Ibsen on 01/11/2023.
 //
 
+/// The Dilithium public key
 public struct PublicKey {
    
+    let signatureSize: Int
     let dilithium: Dilithium
 
     /// The key bytes
@@ -18,30 +20,75 @@ public struct PublicKey {
     ///   - keyBytes: The key bytes
     /// - Throws: An exception if the key bytes has wrong size
     public init(keyBytes: Bytes) throws {
-        try self.init(keyBytes, true)
-    }
-    
-    init(_ keyBytes: Bytes, _ check: Bool) throws {
         self.keyBytes = keyBytes
-        if keyBytes.count == Dilithium.D2pkSize {
-            self.dilithium = Dilithium.D2
-        } else if keyBytes.count == Dilithium.D3pkSize {
-            self.dilithium = Dilithium.D3
-        } else if keyBytes.count == Dilithium.D5pkSize {
-            self.dilithium = Dilithium.D5
+        if keyBytes.count == Dilithium.DSA44pkSize {
+            self.dilithium = Dilithium.ML_DSA_44
+            self.signatureSize = 2420
+        } else if keyBytes.count == Dilithium.DSA65pkSize {
+            self.dilithium = Dilithium.ML_DSA_65
+            self.signatureSize = 3309
+        } else if keyBytes.count == Dilithium.DSA87pkSize {
+            self.dilithium = Dilithium.ML_DSA_87
+            self.signatureSize = 4627
         } else {
             throw DilithiumException.publicKeySize(value: keyBytes.count)
         }
     }
 
-    /// Verifies a signature
-    /// 
+    /// Verifies a signature - pure version
     /// - Parameters:
-    ///   - signature: The signature to verify
     ///   - message: The message to verify against
+    ///   - signature: The signature to verify
     /// - Returns: `true` if the signature is verified, else `false`
-    public func Verify(signature: Bytes, message: Bytes) -> Bool {
-        return self.dilithium.Verify(self.keyBytes, message, signature)
+    public func Verify(message: Bytes, signature: Bytes) -> Bool {
+        guard signature.count == self.signatureSize else {
+            return false
+        }
+        return self.dilithium.Verify(self.keyBytes, message, signature, [])
+    }
+
+    /// Verifies a signature - pure version with context
+    /// - Parameters:
+    ///   - message: The message to verify against
+    ///   - signature: The signature to verify
+    ///   - context: The context string
+    /// - Returns: `true` if the signature is verified, else `false`
+    /// - Throws: An exception if the context size is larger than 255
+    public func Verify(message: Bytes, signature: Bytes, context: Bytes) throws -> Bool {        
+        guard context.count < 256 else {
+            throw DilithiumException.contextSize(value: context.count)
+        }
+        guard signature.count == self.signatureSize else {
+            return false
+        }
+        return self.dilithium.Verify(self.keyBytes, message, signature, context)
+    }
+
+    /// Verifies a signature - pre-hashed version
+    /// - Parameters:
+    ///   - message: The message to verify against
+    ///   - signature: The signature to verify
+    ///   - ph: The pre-hash function
+    /// - Returns: `true` if the signature is verified, else `false`
+    public func VerifyPrehash(message: Bytes, signature: Bytes, ph: DilithiumPreHash) -> Bool {
+        guard signature.count == self.signatureSize else {
+            return false
+        }
+        return self.dilithium.hashVerify(self.keyBytes, message, signature, [], ph)
+    }
+
+    /// Verifies a signature - pre-hashed version with context
+    /// - Parameters:
+    ///   - message: The message to verify against
+    ///   - signature: The signature to verify
+    ///   - ph: The pre-hash function
+    ///   - context: The context string
+    /// - Returns: `true` if the signature is verified, else `false`
+    public func VerifyPrehash(message: Bytes, signature: Bytes, ph: DilithiumPreHash, context: Bytes) -> Bool {
+        guard signature.count == self.signatureSize && context.count < 256 else {
+            return false
+        }
+        return self.dilithium.hashVerify(self.keyBytes, message, signature, context, ph)
     }
 
     /// Equal

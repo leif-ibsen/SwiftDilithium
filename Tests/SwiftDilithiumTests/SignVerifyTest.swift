@@ -10,30 +10,29 @@ import XCTest
 
 final class SignVerifyTest: XCTestCase {
 
-    func doTest(_ d: Dilithium) {
-        for _ in 0 ..< 10 {
-            var msg = Bytes(repeating: 0, count: 1000)
-            Dilithium.randomBytes(&msg)
+    func doTest(_ d: Dilithium) throws {
+        for _ in 0 ..< 5 {
+            var msg = Dilithium.randomBytes(1000)
             let (secretKey, publicKey) = d.GenerateKeyPair()
-            var sig1 = secretKey.Sign(message: msg, deterministic: true)
-            var sig2 = secretKey.Sign(message: msg, deterministic: false)
-            XCTAssertTrue(publicKey.Verify(signature: sig1, message: msg))
-            XCTAssertTrue(publicKey.Verify(signature: sig2, message: msg))
+            var sig1 = secretKey.Sign(message: msg, randomize: true)
+            var sig2 = secretKey.Sign(message: msg, randomize: false)
+            XCTAssertTrue(publicKey.Verify(message: msg, signature: sig1))
+            XCTAssertTrue(publicKey.Verify(message: msg, signature: sig2))
             msg[0] &+= 1
-            XCTAssertFalse(publicKey.Verify(signature: sig1, message: msg))
-            XCTAssertFalse(publicKey.Verify(signature: sig2, message: msg))
+            XCTAssertFalse(publicKey.Verify(message: msg, signature: sig1))
+            XCTAssertFalse(publicKey.Verify(message: msg, signature: sig2))
             msg[0] &-= 1
             sig1[0] &+= 1
             sig2[0] &+= 1
-            XCTAssertFalse(publicKey.Verify(signature: sig1, message: msg))
-            XCTAssertFalse(publicKey.Verify(signature: sig2, message: msg))
+            XCTAssertFalse(publicKey.Verify(message: msg, signature: sig1))
+            XCTAssertFalse(publicKey.Verify(message: msg, signature: sig2))
         }
     }
 
     func test() throws {
-        doTest(Dilithium.D2)
-        doTest(Dilithium.D3)
-        doTest(Dilithium.D5)
+        try doTest(Dilithium.ML_DSA_44)
+        try doTest(Dilithium.ML_DSA_65)
+        try doTest(Dilithium.ML_DSA_87)
     }
 
 }

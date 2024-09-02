@@ -14,4 +14,7 @@ public enum DilithiumException: Error {
     /// Wrong secret key size
     case secretKeySize(value: Int)
     
+    /// Wrong context size
+    case contextSize(value: Int)
+
 }

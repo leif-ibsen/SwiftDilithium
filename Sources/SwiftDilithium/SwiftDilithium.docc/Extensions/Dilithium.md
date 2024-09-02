@@ -4,7 +4,7 @@ The Dilithium structure
 
 ## Overview
 
-The Dilithium structure contains three static properties `D2`, `D3` and `D5`
+The Dilithium structure contains three static properties `ML_DSA_44`, `ML_DSA_65` and `ML_DSA_87`
 corresponding to the three predefined Dilithium instances.
 
 There is no public constructor, it is not possible to create other instances.
@@ -13,9 +13,9 @@ There is no public constructor, it is not possible to create other instances.
 
 ### Dilithium Instances
 
-- ``D2``
-- ``D3``
-- ``D5``
+- ``ML_DSA_44``
+- ``ML_DSA_65``
+- ``ML_DSA_87``
 
 ### Generate Keys
 

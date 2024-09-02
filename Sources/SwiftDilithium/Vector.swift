@@ -33,10 +33,12 @@ struct Vector: Equatable {
         return v
     }
 
-    mutating func modPMQ() {
+    func modPMQ() -> Vector {
+        var v = Vector(self.n)
         for i in 0 ..< self.n {
-            self.polynomial[i].modPMQ()
+            v.polynomial[i] = self.polynomial[i].modPMQ()
         }
+        return v
     }
 
     func OneCount() -> Int {

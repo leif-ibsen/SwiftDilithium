@@ -11,8 +11,7 @@ import XCTest
 final class ExpandTest: XCTestCase {
 
     func doTest(_ d: Dilithium) {
-        var rho = Bytes(repeating: 0, count: 64)
-        Dilithium.randomBytes(&rho)
+        let rho = Dilithium.randomBytes(64)
         let v = d.ExpandMask(rho, 100)
         for i in 0 ..< v.n {
             for j in 0 ..< 256 {
@@ -32,9 +31,9 @@ final class ExpandTest: XCTestCase {
     }
 
     func test() throws {
-        doTest(Dilithium.D2)
-        doTest(Dilithium.D3)
-        doTest(Dilithium.D5)
+        doTest(Dilithium.ML_DSA_44)
+        doTest(Dilithium.ML_DSA_65)
+        doTest(Dilithium.ML_DSA_87)
     }
 
 }

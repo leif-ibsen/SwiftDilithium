@@ -22,9 +22,9 @@ final class EncodeDecodeTest: XCTestCase {
     
     func test() throws {
         for _ in 0 ..< 10 {
-            doTest(Dilithium.D2)
-            doTest(Dilithium.D3)
-            doTest(Dilithium.D5)
+            doTest(Dilithium.ML_DSA_44)
+            doTest(Dilithium.ML_DSA_65)
+            doTest(Dilithium.ML_DSA_87)
         }
     }
     

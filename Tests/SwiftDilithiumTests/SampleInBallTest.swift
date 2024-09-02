@@ -11,8 +11,7 @@ import XCTest
 final class SampleInBallTest: XCTestCase {
 
     func doTest(_ d: Dilithium) {
-        var rho = Bytes(repeating: 0, count: 32)
-        Dilithium.randomBytes(&rho)
+        let rho = Dilithium.randomBytes(d.lambda >> 2)
         let v = d.SampleInBall(rho)
         var x0 = 0
         var x1 = 0
@@ -30,9 +29,9 @@ final class SampleInBallTest: XCTestCase {
     }
 
     func test() throws {
-        doTest(Dilithium.D2)
-        doTest(Dilithium.D3)
-        doTest(Dilithium.D5)
+        doTest(Dilithium.ML_DSA_44)
+        doTest(Dilithium.ML_DSA_65)
+        doTest(Dilithium.ML_DSA_87)
     }
 
 }

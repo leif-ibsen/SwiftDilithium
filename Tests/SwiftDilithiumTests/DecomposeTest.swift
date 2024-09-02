@@ -19,9 +19,9 @@ final class DecomposeTest: XCTestCase {
     }
 
     func test() throws {
-        doTest(Dilithium.D2)
-        doTest(Dilithium.D3)
-        doTest(Dilithium.D5)
+        doTest(Dilithium.ML_DSA_44)
+        doTest(Dilithium.ML_DSA_65)
+        doTest(Dilithium.ML_DSA_87)
     }
 
 }

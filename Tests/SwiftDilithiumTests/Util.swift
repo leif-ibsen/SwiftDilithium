@@ -16,13 +16,29 @@ struct Util {
         for i in 0 ..< bytes.count {
             let b0 = b[2 * i]
             let b1 = b[2 * i + 1]
-            bytes[i] = ((b0 > 57 ? b0 - 97 + 10 : b0 - 48) << 4) | (b1 > 57 ? b1 - 97 + 10 : b1 - 48)
+            if b0 < 58 {
+                bytes[i] = b0 - 48
+            } else if b0 < 71 {
+                bytes[i] = b0 - 65 + 10
+            } else {
+                bytes[i] = b0 - 97 + 10
+            }
+            bytes[i] <<= 4
+            if b1 < 58 {
+                bytes[i] |= b1 - 48
+            } else if b1 < 71 {
+                bytes[i] |= b1 - 65 + 10
+            } else {
+                bytes[i] |= b1 - 97 + 10
+            }
         }
         return bytes
     }
-    
-    static func bytes2hex(_ x: Bytes) -> String {
-        let hexDigits = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b", "c", "d", "e", "f"]
+
+    static func bytes2hex(_ x: Bytes, _ lowercase: Bool = true) -> String {
+        let hexDigits = lowercase ?
+            ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b", "c", "d", "e", "f"] :
+            ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "A", "B", "C", "D", "E", "F"]
         var s = ""
         for b in x {
             s.append(hexDigits[Int(b >> 4)])
@@ -88,4 +104,17 @@ struct Util {
         }
     }
 
+    static func makeDilithium(_ kind: String) -> Dilithium {
+        switch kind {
+        case "DSA44":
+            return Dilithium.ML_DSA_44
+        case "DSA65":
+            return Dilithium.ML_DSA_65
+        case "DSA87":
+            return Dilithium.ML_DSA_87
+        default:
+            fatalError("Wrong KATTEST kind " + kind)
+        }
+    }
+    
 }

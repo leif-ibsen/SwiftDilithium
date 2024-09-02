@@ -5,10 +5,11 @@
 //  Created by Leif Ibsen on 08/03/2024.
 //
 
+/// The Dilithium secret key
 public struct SecretKey {
     
     let dilithium: Dilithium
-
+    
     /// The key bytes
     public let keyBytes: Bytes
 
@@ -18,30 +19,68 @@ public struct SecretKey {
     ///   - keyBytes: The key bytes
     /// - Throws: An exception if the key bytes has wrong size
     public init(keyBytes: Bytes) throws {
-        try self.init(keyBytes, true)
-    }
-    
-    init(_ keyBytes: Bytes, _ check: Bool) throws {
         self.keyBytes = keyBytes
-        if keyBytes.count == Dilithium.D2skSize {
-            self.dilithium = Dilithium.D2
-        } else if keyBytes.count == Dilithium.D3skSize {
-            self.dilithium = Dilithium.D3
-        } else if keyBytes.count == Dilithium.D5skSize {
-            self.dilithium = Dilithium.D5
+        if keyBytes.count == Dilithium.DSA44skSize {
+            self.dilithium = Dilithium.ML_DSA_44
+        } else if keyBytes.count == Dilithium.DSA65skSize {
+            self.dilithium = Dilithium.ML_DSA_65
+        } else if keyBytes.count == Dilithium.DSA87skSize {
+            self.dilithium = Dilithium.ML_DSA_87
         } else {
             throw DilithiumException.secretKeySize(value: keyBytes.count)
         }
     }
-
-    /// Signs a message
+    
+    /// Signs a message - pure version
     ///
     /// - Parameters:
     ///   - message: The message to sign
-    ///   - deterministic: If `true`, generate a deterministic signature, else generate a randomized signature, default is `false`
+    ///   - randomize: If `true`, generate a randomized signature, else generate a deterministic signature, default is `true`
     /// - Returns: The signature
-    public func Sign(message: Bytes, deterministic: Bool = false) -> Bytes {
-        return self.dilithium.Sign(self.keyBytes, message, deterministic)
+    public func Sign(message: Bytes, randomize: Bool = true) -> Bytes {
+        return self.dilithium.Sign(self.keyBytes, message, [], randomize)
+    }
+    
+    /// Signs a message - pure version with context
+    ///
+    /// - Parameters:
+    ///   - message: The message to sign
+    ///   - context: The context string
+    ///   - randomize: If `true`, generate a randomized signature, else generate a deterministic signature, default is `true`
+    /// - Returns: The signature
+    /// - Throws: An exception if the context size is larger than 255
+    public func Sign(message: Bytes, context: Bytes, randomize: Bool = true) throws -> Bytes {
+        guard context.count < 256 else {
+            throw DilithiumException.contextSize(value: context.count)
+        }
+        return self.dilithium.Sign(self.keyBytes, message, context, randomize)
+    }
+    
+    /// Signs a message - pre-hashed version
+    ///
+    /// - Parameters:
+    ///   - message: The message to sign
+    ///   - ph: The pre-hash function
+    ///   - randomize: If `true`, generate a randomized signature, else generate a deterministic signature, default is `true`
+    /// - Returns: The signature
+    public func SignPrehash(message: Bytes, ph: DilithiumPreHash, randomize: Bool = true) -> Bytes {
+        return self.dilithium.hashSign(self.keyBytes, message, [], ph, randomize)
+    }
+    
+    /// Signs a message - pre-hashed version with context
+    ///
+    /// - Parameters:
+    ///   - message: The message to sign
+    ///   - ph: The pre-hash function
+    ///   - context: The context string
+    ///   - randomize: If `true`, generate a randomized signature, else generate a deterministic signature, default is `true`
+    /// - Returns: The signature
+    /// - Throws: An exception if the context size is larger than 255
+    public func SignPrehash(message: Bytes, ph: DilithiumPreHash, context: Bytes, randomize: Bool = true) throws -> Bytes {
+        guard context.count < 256 else {
+            throw DilithiumException.contextSize(value: context.count)
+        }
+        return self.dilithium.hashSign(self.keyBytes, message, context, ph, randomize)
     }
 
     /// Equal

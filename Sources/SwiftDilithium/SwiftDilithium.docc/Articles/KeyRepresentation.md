@@ -9,7 +9,7 @@ SwiftDilithium keys can be stored as raw bytes and later recreated from the stor
 ```swift
 import SwiftDilithium
 
-let (sk, pk) = Dilithium.D2.GenerateKeyPair()
+let (sk, pk) = Dilithium.ML_DSA_44.GenerateKeyPair()
 
 let skKeyBytes = sk.keyBytes
 let pkKeyBytes = pk.keyBytes

@@ -1,6 +1,6 @@
 ## SwiftDilithium
 
-SwiftDilithium is a Swift implementation of NIST FIPS 204 (Draft): *Module-Lattice-Based Digital Signature Standard, August 2023*.
+SwiftDilithium is a Swift implementation of NIST FIPS 204: *Module-Lattice-Based Digital Signature Standard, August 13, 2024*.
 
 SwiftDilithium functionality:
 
@@ -16,3 +16,5 @@ Its documentation is build with the DocC plugin and published on GitHub Pages at
 https://leif-ibsen.github.io/SwiftDilithium/documentation/swiftdilithium
 
 The documentation is also available in the *SwiftDilithium.doccarchive* file.
+
+The KAT test vectors come from GitHub ACVP-server release 1.1.0.35.

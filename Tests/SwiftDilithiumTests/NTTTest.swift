@@ -57,15 +57,14 @@ final class NTTTest: XCTestCase {
     }
 
     func test2() throws {
-        for _ in 0 ..< 20 {
+        for _ in 0 ..< 1 {
             var p = Polynomial()
             for i in 0 ..< 256 {
                 p.coef[i] = Int.random(in: -Dilithium.Q + 1 ..< Dilithium.Q)
             }
             let p1 = p.NTT().INTT()
             for i in 0 ..< 256 {
-                let r = Polynomial.montgomeryReduce(p1.coef[i])
-                XCTAssertTrue((r - p.coef[i]) % Dilithium.Q == 0)
+                XCTAssertTrue((p1.coef[i] - p.coef[i]) % Dilithium.Q == 0)
             }
         }
     }

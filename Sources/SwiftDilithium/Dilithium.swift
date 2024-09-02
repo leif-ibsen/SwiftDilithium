@@ -16,34 +16,48 @@ public typealias Bytes = [UInt8]
 
 public struct Dilithium {
     
-    /// The Dilithium D2 instance
-    public static let D2 = Dilithium(DilithiumParameters.D2)
     
-    /// The Dilithium D3 instance
-    public static let D3 = Dilithium(DilithiumParameters.D3)
+    // MARK: Dilithium Instances
     
-    /// The Dilithium D5 instance
-    public static let D5 = Dilithium(DilithiumParameters.D5)
+    /// The ML_DSA_44 instance
+    public static let ML_DSA_44 = Dilithium(DilithiumParameters.DSA44)
+
+    /// The ML_DSA_65 instance
+    public static let ML_DSA_65 = Dilithium(DilithiumParameters.DSA65)
+
+    /// The ML_DSA_87 instance
+    public static let ML_DSA_87 = Dilithium(DilithiumParameters.DSA87)
+
     
-    /// Generates an secret key and a public key
+    // MARK: Instance Methods
+
+    /// Generates a secret key and a public key
     ///
     /// - Returns: The secret key `sk` and the public key `pk`
     public func GenerateKeyPair() -> (sk: SecretKey, pk: PublicKey) {
-        let (pk, sk) = KeyGen([])
+        let (pk, sk) = KeyGen()
         do {
-            return (try SecretKey(sk, false), try PublicKey(pk, false))
+            return (try SecretKey(keyBytes: sk), try PublicKey(keyBytes: pk))
         } catch {
             // Shouldn't happen
             fatalError("GenerateKeyPair inconsistency")
         }
     }
 
-    static let D2pkSize = 1312
-    static let D2skSize = 2560
-    static let D3pkSize = 1952
-    static let D3skSize = 4032
-    static let D5pkSize = 2592
-    static let D5skSize = 4896
+    static func randomBytes(_ n: Int) -> Bytes {
+        var bytes = Bytes(repeating: 0, count: n)
+        guard SecRandomCopyBytes(kSecRandomDefault, bytes.count, &bytes) == errSecSuccess else {
+            fatalError("randomBytes failed")
+        }
+        return bytes
+    }
+
+    static let DSA44pkSize = 1312
+    static let DSA44skSize = 2560
+    static let DSA65pkSize = 1952
+    static let DSA65skSize = 4032
+    static let DSA87pkSize = 2592
+    static let DSA87skSize = 4896
 
     static let BLANK = Int.max
     
@@ -51,7 +65,7 @@ public struct Dilithium {
     static let Q2 = 4190208   // Q / 2
     static let D = 13         // dropped bits from t
     static let N = 256        // polynomial size
-    
+
     let tau: Int
     let entr: Int
     let lambda: Int
@@ -62,7 +76,7 @@ public struct Dilithium {
     let eta: Int
     let beta: Int
     let omega: Int
-    
+
     init(_ dp: DilithiumParameters) {
         self.tau = dp.tau
         self.entr = dp.entr
@@ -75,13 +89,7 @@ public struct Dilithium {
         self.beta = dp.beta
         self.omega = dp.omega
     }
-    
-    static func randomBytes(_ bytes: inout Bytes) {
-        guard SecRandomCopyBytes(kSecRandomDefault, bytes.count, &bytes) == errSecSuccess else {
-            fatalError("randomBytes failed")
-        }
-    }
-    
+
     static func bitlen(_ x: Int) -> Int {
         assert(x > 0)
         return 64 - x.leadingZeroBitCount
@@ -98,10 +106,12 @@ public struct Dilithium {
         return t < 0 ? t + Dilithium.Q : t
     }
     
+    // [FIPS 204] - section 2.3
     static func modPM(_ r: Int, _ a: Int) -> Int {
         assert(a > 0)
         var t = r % a
         if a & 1 == 0 {
+            // a is even
             if t > a / 2 {
                 t -= a
             } else if t <= -a / 2 {
@@ -109,6 +119,7 @@ public struct Dilithium {
             }
             assert(-a / 2 < t && t <= a / 2)
         } else {
+            // a is odd
             if t > (a - 1) / 2 {
                 t -= a
             } else if t < -(a - 1) / 2 {
@@ -123,20 +134,79 @@ public struct Dilithium {
         return modPM(r, Dilithium.Q)
     }
 
-    static func norm(_ r: Int) -> Int {
-        return Swift.abs(modPMQ(r))
+    // [FIPS 204] - Algorithm 1
+    func KeyGen() -> (pk: Bytes, sk: Bytes) {
+        return KeyGenInternal(Dilithium.randomBytes(32))
+    }
+    
+    // [FIPS 204] - Algorithm 2
+    func Sign(_ sk: Bytes, _ M: Bytes, _ ctx: Bytes, _ randomize: Bool) -> Bytes {
+        assert(sk.count == 128 + 32 * ((self.l + self.k) * Dilithium.bitlen(self.eta << 1) + self.k * Dilithium.D))
+        assert(ctx.count < 256)
+        let M1: Bytes = [0] + [Byte(ctx.count)] + ctx + M
+        return SignInternal(sk, M1, randomize ? Dilithium.randomBytes(32) : Bytes(repeating: 0, count: 32))
     }
 
-    // [FIPS 204] - Algorithm 1
-    func KeyGen(_ seed: Bytes = []) -> (pk: Bytes, sk: Bytes) {
-        assert(seed.count == 0 || seed.count == 32)
-        var xi = Bytes(repeating: 0, count: 32)
-        if seed.count == 0 {
-            Dilithium.randomBytes(&xi)
-        } else {
-            xi = seed
+    // [FIPS 204] - Algorithm 3
+    func Verify(_ pk: Bytes, _ M: Bytes, _ sigma: Bytes, _ ctx: Bytes) -> Bool {
+        assert(pk.count == 32 + 32 * self.k * (Dilithium.bitlen(Dilithium.Q - 1) - Dilithium.D))
+        assert(ctx.count < 256)
+        let M1: Bytes = [0] + [Byte(ctx.count)] + ctx + M
+        return VerifyInternal(pk, M1, sigma)
+    }
+
+    // [FIPS 204] - Algorithm 4
+    func hashSign(_ sk: Bytes, _ M: Bytes, _ ctx: Bytes, _ PH: DilithiumPreHash, _ randomize: Bool) -> Bytes {
+        assert(sk.count == 128 + 32 * ((self.l + self.k) * Dilithium.bitlen(self.eta << 1) + self.k * Dilithium.D))
+        assert(ctx.count < 256)
+        var OID: Bytes
+        var phM: Bytes
+        switch PH {
+        case .SHA256:
+            OID = [0, 6, 9, 96, 134, 72, 1, 101, 3, 4, 2, 1]
+            phM = MessageDigest(.SHA2_256).digest(M)
+        case .SHA512:
+            OID = [0, 6, 9, 96, 134, 72, 1, 101, 3, 4, 2, 3]
+            phM = MessageDigest(.SHA2_512).digest(M)
+        case .SHAKE128:
+            OID = [0, 6, 9, 96, 134, 72, 1, 101, 3, 4, 2, 11]
+            phM = XOF(.XOF128, M).read(256)
+        case .SHAKE256:
+            OID = [0, 6, 9, 96, 134, 72, 1, 101, 3, 4, 2, 12]
+            phM = XOF(.XOF256, M).read(512)
         }
-        let H = XOF(.XOF256, xi)
+        let M1: Bytes = [1] + [Byte(ctx.count)] + ctx + OID + phM
+        return SignInternal(sk, M1, randomize ? Dilithium.randomBytes(32) : Bytes(repeating: 0, count: 32))
+    }
+
+    // [FIPS 204] - Algorithm 5
+    func hashVerify(_ pk: Bytes, _ M: Bytes, _ sigma: Bytes, _ ctx: Bytes, _ PH: DilithiumPreHash) -> Bool {
+        assert(pk.count == 32 + 32 * self.k * (Dilithium.bitlen(Dilithium.Q - 1) - Dilithium.D))
+        assert(ctx.count < 256)
+        var OID: Bytes
+        var phM: Bytes
+        switch PH {
+        case .SHA256:
+            OID = [0, 6, 9, 96, 134, 72, 1, 101, 3, 4, 2, 1]
+            phM = MessageDigest(.SHA2_256).digest(M)
+        case .SHA512:
+            OID = [0, 6, 9, 96, 134, 72, 1, 101, 3, 4, 2, 3]
+            phM = MessageDigest(.SHA2_512).digest(M)
+        case .SHAKE128:
+            OID = [0, 6, 9, 96, 134, 72, 1, 101, 3, 4, 2, 11]
+            phM = XOF(.XOF128, M).read(256)
+        case .SHAKE256:
+            OID = [0, 6, 9, 96, 134, 72, 1, 101, 3, 4, 2, 12]
+            phM = XOF(.XOF256, M).read(512)
+        }
+        let M1: Bytes = [1] + [Byte(ctx.count)] + ctx + OID + phM
+        return VerifyInternal(pk, M1, sigma)
+    }
+
+    // [FIPS 204] - Algorithm 6
+    func KeyGenInternal(_ xi: Bytes) -> (pk: Bytes, sk: Bytes) {
+        assert(xi.count == 32)
+        let H = XOF(.XOF256, xi + [Byte(self.k)] + [Byte(self.l)])
         let rho = H.read(32)
         let rho1 = H.read(64)
         let K = H.read(32)
@@ -150,19 +220,15 @@ public struct Dilithium {
         return (pk, sk)
     }
 
-    // [FIPS 204] - Algorithm 2
-    func Sign(_ sk: Bytes, _ M: Bytes, _ deterministic: Bool = true) -> Bytes {
-        assert(sk.count == 128 + ((self.l + self.k) * Dilithium.bitlen(self.eta << 1) + self.k * Dilithium.D) << 5)
+    // [FIPS 204] - Algorithm 7
+    func SignInternal(_ sk: Bytes, _ M: Bytes, _ rnd: Bytes) -> Bytes {
+        assert(sk.count == 128 + 32 * ((self.l + self.k) * Dilithium.bitlen(self.eta << 1) + self.k * Dilithium.D))
         let (rho, K, tr, s1, s2, t0) = skDecode(sk)
         let s1Hat = s1.NTT()
         let s2Hat = s2.NTT()
         let t0Hat = t0.NTT()
         let aHat = ExpandA(rho)
         let my = XOF(.XOF256, tr + M).read(64)
-        var rnd = Bytes(repeating: 0, count: 32)
-        if !deterministic {
-            Dilithium.randomBytes(&rnd)
-        }
         let rho1 = XOF(.XOF256, K + rnd + my).read(64)
         var kappa = 0
         var z = Vector(self.l)
@@ -174,7 +240,7 @@ public struct Dilithium {
             let w = (aHat * y.NTT()).INTT()
             let w1 = HighBits(w)
             cTilde = XOF(.XOF256, my + w1Encode(w1)).read(self.lambda >> 2)
-            let c = SampleInBall(Bytes(cTilde[0 ..< 32]))
+            let c = SampleInBall(cTilde)
             let cHat = c.NTT()
             let cs1 = (cHat * s1Hat).INTT()
             let cs2 = (cHat * s2Hat).INTT()
@@ -193,30 +259,29 @@ public struct Dilithium {
             }
             kappa += self.l
         }
-        z.modPMQ()
-        return sigEncode(cTilde, z, h)
+        return sigEncode(cTilde, z.modPMQ(), h)
     }
     
-    // [FIPS 204] - Algorithm 3
-    func Verify(_ pk: Bytes, _ M: Bytes, _ sigma: Bytes) -> Bool {
-        assert(pk.count == 32 + self.k * (Dilithium.bitlen(Dilithium.Q - 1) - Dilithium.D) << 5)
-        assert(sigma.count == self.lambda >> 2 + self.l * (1 + Dilithium.bitlen(self.gamma1 - 1)) << 5 + self.omega + self.k)
+    // [FIPS 204] - Algorithm 8
+    func VerifyInternal(_ pk: Bytes, _ M: Bytes, _ sigma: Bytes) -> Bool {
+        assert(pk.count == 32 + 32 * self.k * (Dilithium.bitlen(Dilithium.Q - 1) - Dilithium.D))
+        assert(sigma.count == self.lambda >> 2 + 32 * self.l * (1 + Dilithium.bitlen(self.gamma1 - 1)) + self.omega + self.k)
         let (rho, t1) = pkDecode(pk)
-        let (cTilde, z, h) = sigDecode(sigma)
-        guard let _h = h else {
+        let (cTilde, z, _h) = sigDecode(sigma)
+        guard let h = _h else {
             return false
         }
         let aHat = ExpandA(rho)
         let tr = XOF(.XOF256, pk).read(64)
         let my = XOF(.XOF256, tr + M).read(64)
-        let c = SampleInBall(Bytes(cTilde[0 ..< 32]))
+        let c = SampleInBall(cTilde)
         let wApprox = (aHat * z.NTT() - c.NTT() * (t1 * (1 << Dilithium.D)).NTT()).INTT()
-        let w1 = UseHint(_h, wApprox)
-        let _cTilde = XOF(.XOF256, my + w1Encode(w1)).read(self.lambda >> 2)
-        return !z.checkNorm(self.gamma1 - self.beta) && cTilde == _cTilde && _h.OneCount() <= self.omega
+        let w1 = UseHint(h, wApprox)
+        let cTilde1 = XOF(.XOF256, my + w1Encode(w1)).read(self.lambda >> 2)
+        return !z.checkNorm(self.gamma1 - self.beta) && cTilde == cTilde1
     }
-    
-    // [FIPS 204] - Algorithm 8
+
+    // [FIPS 204] - Algorithm 14
     static func CoeffFromThreeBytes(_ b: Bytes) -> Int {
         assert(b.count == 3)
         let b0 = Int(b[0])
@@ -226,20 +291,20 @@ public struct Dilithium {
         return z < Dilithium.Q ? z : BLANK
     }
     
-    // [FIPS 204] - Algorithm 9
+    // [FIPS 204] - Algorithm 15
     func CoeffFromHalfByte(_ b: Byte) -> Int {
         assert(0 <= b && b < 16)
         let b_ = Int(b)
         if self.eta == 2 && b < 15 {
             return 2 - b_ % 5
-        }
-        if self.eta == 4 && b < 9 {
+        } else if self.eta == 4 && b < 9 {
             return 4 - b_
+        } else {
+            return Dilithium.BLANK
         }
-        return Dilithium.BLANK
     }
     
-    // [FIPS 204] - Algorithm 10
+    // [FIPS 204] - Algorithm 16
     static func SimpleBitPack(_ w: Polynomial, _ b: Int) -> Bytes {
         assert(b > 0)
         var z = Bytes(repeating: 0, count: Dilithium.bitlen(b) << 5)
@@ -271,7 +336,7 @@ public struct Dilithium {
         return z
     }
 
-    // [FIPS 204] - Algorithm 11
+    // [FIPS 204] - Algorithm 17
     static func BitPack(_ w: Polynomial, _ a: Int, _ b: Int) -> Bytes {
         assert(a > 0)
         assert(b > 0)
@@ -304,9 +369,10 @@ public struct Dilithium {
         return z
     }
 
-    // [FIPS 204] - Algorithm 12
+    // [FIPS 204] - Algorithm 18
     static func SimpleBitUnpack(_ ny: Bytes, _ b: Int) -> Polynomial {
-        assert(ny.count == Dilithium.bitlen(b) << 5)
+        assert(ny.count == Dilithium.bitlen(b) * 32)
+        assert(b > 0)
         let c = Dilithium.bitlen(b)
         var w = [Int](repeating: 0, count: 256)
         var nyi = 0
@@ -328,9 +394,11 @@ public struct Dilithium {
         return Polynomial(w)
     }
 
-    // [FIPS 204] - Algorithm 13
+    // [FIPS 204] - Algorithm 19
     static func BitUnpack(_ ny: Bytes, _ a: Int, _ b: Int) -> Polynomial {
-        assert(ny.count == Dilithium.bitlen(a + b) << 5)
+        assert(ny.count == 32 * Dilithium.bitlen(a + b))
+        assert(a > 0)
+        assert(b > 0)
         let c = Dilithium.bitlen(a + b)
         var w = [Int](repeating: 0, count: 256)
         var nyi = 0
@@ -352,47 +420,50 @@ public struct Dilithium {
         return Polynomial(w)
     }
 
-    // [FIPS 204] - Algorithm 14
+    // [FIPS 204] - Algorithm 20
     func HintBitPack(_ h: Vector) -> Bytes {
         assert(h.n == self.k)
         var y = Bytes(repeating: 0, count: self.k + self.omega)
-        var Index = 0
+        var index = 0
         for i in 0 ..< self.k {
             for j in 0 ..< 256 {
                 if h.polynomial[i].coef[j] != 0 {
-                    y[Index] = Byte(j)
-                    Index += 1
+                    y[index] = Byte(j)
+                    index += 1
                 }
             }
-            y[self.omega + i] = Byte(Index)
+            y[self.omega + i] = Byte(index)
         }
         return y
     }
 
-    // [FIPS 204] - Algorithm 15
+    // [FIPS 204] - Algorithm 21
     func HintBitUnpack(_ y: Bytes) -> Vector? {
         assert(y.count == self.omega + self.k)
         var h = Vector(self.k)
-        var Index = 0
+        var index = 0
         for i in 0 ..< self.k {
-            if y[self.omega + i] < Index || y[self.omega + i] > self.omega {
+            if y[self.omega + i] < index || y[self.omega + i] > self.omega {
                 return nil
             }
-            while Index < y[self.omega + i] {
-                h.polynomial[i].coef[Int(y[Index])] = 1
-                Index += 1
+            let first = index
+            while index < y[self.omega + i] {
+                if index > first && y[index - 1] >= y[index] {
+                    return nil
+                }
+                h.polynomial[i].coef[Int(y[index])] = 1
+                index += 1
             }
         }
-        while Index < self.omega {
-            if y[Index] != 0 {
+        for i in index ..< self.omega {
+            if y[i] != 0 {
                 return nil
             }
-            Index += 1
         }
         return h
     }
     
-    // [FIPS 204] - Algorithm 16
+    // [FIPS 204] - Algorithm 22
     func pkEncode(_ rho: Bytes, _ t1: Vector) -> Bytes {
         assert(rho.count == 32)
         assert(t1.n == self.k)
@@ -403,9 +474,9 @@ public struct Dilithium {
         return pk
     }
 
-    // [FIPS 204] - Algorithm 17
+    // [FIPS 204] - Algorithm 23
     func pkDecode(_ pk: Bytes) -> (rho: Bytes, t1: Vector) {
-        assert(pk.count == 32 + self.k * (Dilithium.bitlen(Dilithium.Q - 1) - Dilithium.D) << 5)
+        assert(pk.count == 32 + 32 * self.k * (Dilithium.bitlen(Dilithium.Q - 1) - Dilithium.D))
         var pkSlice = pk.sliced()
         let rho = pkSlice.next(32)
         var t1 = Vector(self.k)
@@ -416,14 +487,14 @@ public struct Dilithium {
         return (rho, t1)
     }
     
-    static let bitPackLength = 1 << (Dilithium.D - 1)
-
-    // [FIPS 204] - Algorithm 18
+    // [FIPS 204] - Algorithm 24
     func skEncode(_ rho: Bytes, _ K: Bytes, _ tr: Bytes, _ s1: Vector, _ s2: Vector, _ t0: Vector) -> Bytes {
         assert(rho.count == 32)
+        assert(K.count == 32)
         assert(tr.count == 64)
         assert(s1.n == self.l)
         assert(s2.n == self.k)
+        let bitPackLength = 1 << (Dilithium.D - 1)
         var sk = rho + K + tr
         for i in 0 ..< self.l {
             sk += Dilithium.BitPack(s1.polynomial[i], self.eta, self.eta)
@@ -432,14 +503,15 @@ public struct Dilithium {
             sk += Dilithium.BitPack(s2.polynomial[i], self.eta, self.eta)
         }
         for i in 0 ..< self.k {
-            sk += Dilithium.BitPack(t0.polynomial[i], Dilithium.bitPackLength - 1, Dilithium.bitPackLength)
+            sk += Dilithium.BitPack(t0.polynomial[i], bitPackLength - 1, bitPackLength)
         }
         return sk
     }
 
-    // [FIPS 204] - Algorithm 19
+    // [FIPS 204] - Algorithm 25
     func skDecode(_ sk: Bytes) -> (rho: Bytes, K: Bytes, tr: Bytes, s1: Vector, s2: Vector, t0: Vector) {
         assert(sk.count == 128 + 32 * ((self.l + self.k) * Dilithium.bitlen(2 * self.eta) + self.k * Dilithium.D))
+        let bitPackLength = 1 << (Dilithium.D - 1)
         var skSlice = sk.sliced()
         let rho = skSlice.next(32)
         let K = skSlice.next(32)
@@ -456,17 +528,17 @@ public struct Dilithium {
         let l2 = Dilithium.D << 5
         var t0 = Vector(self.k)
         for i in 0 ..< self.k {
-            t0.polynomial[i] = Dilithium.BitUnpack(skSlice.next(l2), Dilithium.bitPackLength - 1, Dilithium.bitPackLength)
+            t0.polynomial[i] = Dilithium.BitUnpack(skSlice.next(l2), bitPackLength - 1, bitPackLength)
         }
         return (rho, K, tr, s1, s2, t0)
     }
 
-    // [FIPS 204] - Algorithm 20
-    func sigEncode(_ c: Bytes, _ z: Vector, _ h: Vector) -> Bytes {
-        assert(c.count == self.lambda >> 2)
+    // [FIPS 204] - Algorithm 26
+    func sigEncode(_ cTilde: Bytes, _ z: Vector, _ h: Vector) -> Bytes {
+        assert(cTilde.count == self.lambda / 4)
         assert(z.n == self.l)
         assert(h.n == self.k)
-        var sigma = c
+        var sigma = cTilde
         for i in 0 ..< self.l {
             sigma += Dilithium.BitPack(z.polynomial[i], self.gamma1 - 1, self.gamma1)
         }
@@ -474,21 +546,21 @@ public struct Dilithium {
         return sigma
     }
 
-    // [FIPS 204] - Algorithm 21
+    // [FIPS 204] - Algorithm 27
     func sigDecode(_ sigma: Bytes) -> (c: Bytes, z: Vector, h: Vector?) {
-        assert(sigma.count == self.lambda >> 2 + self.l * (1 + Dilithium.bitlen(self.gamma1 - 1)) << 5 + self.omega + self.k)
+        assert(sigma.count == self.lambda / 4 + 32 * self.l * (1 + Dilithium.bitlen(self.gamma1 - 1)) + self.omega + self.k)
         var sigmaSlice = sigma.sliced()
-        let w = sigmaSlice.next(self.lambda >> 2)
+        let cTilde = sigmaSlice.next(self.lambda >> 2)
         var z = Vector(self.l)
         let l = (1 + Dilithium.bitlen(self.gamma1 - 1)) << 5
         for i in 0 ..< self.l {
             z.polynomial[i] = Dilithium.BitUnpack(sigmaSlice.next(l), self.gamma1 - 1, self.gamma1)
         }
         let h = HintBitUnpack(sigmaSlice.next(self.omega + self.k))
-        return (w, z, h)
+        return (cTilde, z, h)
     }
 
-    // [FIPS 204] - Algorithm 22
+    // [FIPS 204] - Algorithm 28
     func w1Encode(_  w1: Vector) -> Bytes {
         assert(w1.n == self.k)
         var w1Hat: Bytes = []
@@ -499,9 +571,9 @@ public struct Dilithium {
         return w1Hat
     }
 
-    // [FIPS 204] - Algorithm 23
+    // [FIPS 204] - Algorithm 29
     func SampleInBall(_ rho: Bytes) -> Polynomial {
-        assert(rho.count == 32)
+        assert(rho.count == self.lambda / 4)
         let xof = XOF(.XOF256, rho)
         let signs = xof.read(8)
         var sign = UInt(0)
@@ -525,7 +597,7 @@ public struct Dilithium {
         return Polynomial(c)
     }
     
-    // [FIPS 204] - Algorithm 24
+    // [FIPS 204] - Algorithm 30
     static func RejNTTPoly(_ rho: Bytes) -> Polynomial {
         assert(rho.count == 34)
         var aHat = Polynomial()
@@ -540,7 +612,7 @@ public struct Dilithium {
         return aHat
     }
 
-    // [FIPS 204] - Algorithm 25
+    // [FIPS 204] - Algorithm 31
     func RejBoundedPoly(_ rho: Bytes) -> Polynomial {
         assert(rho.count == 66)
         var a = [Int](repeating: 0, count: 256)
@@ -562,54 +634,54 @@ public struct Dilithium {
         return Polynomial(a)
     }
     
-    // [FIPS 204] - Algorithm 26
+    // [FIPS 204] - Algorithm 32
     func ExpandA(_ rho: Bytes) -> Matrix {
         assert(rho.count == 32)
         var A = Matrix(self.k, self.l)
         for r in 0 ..< self.k {
             for s in 0 ..< self.l {
-                A.vector[r].polynomial[s] = Dilithium.RejNTTPoly(rho + [Byte(s)] + [Byte(r)])
+                let rho1 = rho + [Byte(s)] + [Byte(r)]
+                A.vector[r].polynomial[s] = Dilithium.RejNTTPoly(rho1)
             }
         }
         return A
     }
 
-    // [FIPS 204] - Algorithm 27
+    // [FIPS 204] - Algorithm 33
     func ExpandS(_ rho: Bytes) -> (s1: Vector, s2: Vector) {
         assert(rho.count == 64)
         var s1 = Vector(self.l)
         for r in 0 ..< self.l {
-            s1.polynomial[r] = RejBoundedPoly(rho + [Byte(r)] + [0])
+            s1.polynomial[r] = RejBoundedPoly(rho + [Byte(r), 0])
         }
         var s2 = Vector(self.k)
         for r in 0 ..< self.k {
-            s2.polynomial[r] = RejBoundedPoly(rho + [Byte(r + self.l)] + [0])
+            s2.polynomial[r] = RejBoundedPoly(rho + [Byte(r + self.l), 0])
         }
         return (s1, s2)
     }
     
-    // [FIPS 204] - Algorithm 28
-    func ExpandMask(_ rho: Bytes, _ u: Int) -> Vector {
+    // [FIPS 204] - Algorithm 34
+    func ExpandMask(_ rho: Bytes, _ my: Int) -> Vector {
         assert(rho.count == 64)
-        assert(u >= 0)
-        var s = Vector(self.l)
+        assert(my >= 0)
+        var y = Vector(self.l)
         let c = 1 + Dilithium.bitlen(self.gamma1 - 1)
         for r in 0 ..< self.l {
-            let xof = XOF(.XOF256, rho + [Byte((u + r) & 0xff)] + [Byte((u + r) >> 8)])
-            let ny = xof.read(c << 5)
-            s.polynomial[r] = Dilithium.BitUnpack(ny, self.gamma1 - 1, self.gamma1)
+            let v = XOF(.XOF256, rho + [Byte((my + r) & 0xff)] + [Byte((my + r) >> 8)]).read(c << 5)
+            y.polynomial[r] = Dilithium.BitUnpack(v, self.gamma1 - 1, self.gamma1)
         }
-        return s
+        return y
     }
-    
-    // [FIPS 204] - Algorithm 29
+
+    // [FIPS 204] - Algorithm 35
     static func Power2Round(_ r: Int) -> (r1: Int, r0: Int) {
         let rp = Dilithium.modQ(r)
-        assert(0 <= rp && rp < Dilithium.Q)
         let r0 = Dilithium.modPM(rp, 1 << Dilithium.D)
         return ((rp - r0) >> Dilithium.D, r0)
     }
     
+    // Polynomial version
     static func Power2Round(_ r: Polynomial) -> (p1: Polynomial, p0: Polynomial) {
         var p1 = Polynomial()
         var p0 = Polynomial()
@@ -628,11 +700,11 @@ public struct Dilithium {
         return (v1, v0)
     }
 
-    // [FIPS 204] - Algorithm 30
+    // [FIPS 204] - Algorithm 36
     func Decompose(_ r: Int) -> (r1: Int, r0: Int) {
         let rp = Dilithium.modQ(r)
         var r0 = Dilithium.modPM(rp, self.gamma2 << 1)
-        var r1 = 0
+        var r1: Int
         if rp - r0 == Dilithium.Q - 1 {
             r1 = 0
             r0 -= 1
@@ -642,11 +714,12 @@ public struct Dilithium {
         return (r1, r0)
     }
     
-    // [FIPS 204] - Algorithm 31
+    // [FIPS 204] - Algorithm 37
     func HighBits(_ r: Int) -> Int {
         return Decompose(r).r1
     }
     
+    // Polynomial version
     func HighBits(_ r: Polynomial) -> Polynomial {
         var x = [Int](repeating: 0, count: 256)
         for i in 0 ..< 256 {
@@ -655,6 +728,7 @@ public struct Dilithium {
         return Polynomial(x)
     }
 
+    // Vector version
     func HighBits(_ r: Vector) -> Vector {
         var x = Vector(r.n)
         for i in 0 ..< x.n {
@@ -663,11 +737,12 @@ public struct Dilithium {
         return x
     }
 
-    // [FIPS 204] - Algorithm 32
+    // [FIPS 204] - Algorithm 38
     func LowBits(_ r: Int) -> Int {
         return Decompose(r).r0
     }
     
+    // Polynomial version
     func LowBits(_ r: Polynomial) -> Polynomial {
         var x = [Int](repeating: 0, count: 256)
         for i in 0 ..< 256 {
@@ -676,6 +751,7 @@ public struct Dilithium {
         return Polynomial(x)
     }
 
+    // Vector version
     func LowBits(_ r: Vector) -> Vector {
         var x = Vector(r.n)
         for i in 0 ..< x.n {
@@ -684,11 +760,12 @@ public struct Dilithium {
         return x
     }
 
-    // [FIPS 204] - Algorithm 33
+    // [FIPS 204] - Algorithm 39
     func MakeHint(_ z: Int, _ r: Int) -> Int {
         return HighBits(r) != HighBits(r + z) ? 1 : 0
     }
 
+    // Polynomial version
     func MakeHint(_ h: Polynomial, _ r: Polynomial) -> Polynomial {
         var x = [Int](repeating: 0, count: 256)
         for i in 0 ..< 256 {
@@ -697,6 +774,7 @@ public struct Dilithium {
         return Polynomial(x)
     }
     
+    // Vector version
     func MakeHint(_ h: Vector, _ r: Vector) -> Vector {
         var x = Vector(r.n)
         for i in 0 ..< r.n {
@@ -705,20 +783,21 @@ public struct Dilithium {
         return x
     }
 
-    // [FIPS 204] - Algorithm 34
+    // [FIPS 204] - Algorithm 40
     func UseHint(_ h: Int, _ r: Int) -> Int {
         assert(h == 0 || h == 1)
         let m = (Dilithium.Q - 1) / (self.gamma2 << 1)
         let (r1, r0) = Decompose(r)
         if h == 1 && r0 > 0 {
             return Dilithium.mod(r1 + 1, m)
-        }
-        if h == 1 && r0 <= 0 {
+        } else if h == 1 && r0 <= 0 {
             return Dilithium.mod(r1 - 1, m)
+        } else {
+            return r1
         }
-        return r1
     }
 
+    // Polynomial version
     func UseHint(_ h: Polynomial, _ r: Polynomial) -> Polynomial {
         var x = [Int](repeating: 0, count: 256)
         for i in 0 ..< 256 {
@@ -727,6 +806,7 @@ public struct Dilithium {
         return Polynomial(x)
     }
 
+    // Vector version
     func UseHint(_ h: Vector, _ r: Vector) -> Vector {
         var x = Vector(r.n)
         for i in 0 ..< r.n {
