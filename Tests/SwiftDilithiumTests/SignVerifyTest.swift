@@ -10,10 +10,10 @@ import XCTest
 
 final class SignVerifyTest: XCTestCase {
 
-    func doTest(_ d: Dilithium) throws {
+    func doTest(_ kind: Kind) throws {
         for _ in 0 ..< 5 {
             var msg = Dilithium.randomBytes(1000)
-            let (secretKey, publicKey) = d.GenerateKeyPair()
+            let (secretKey, publicKey) = Dilithium.GenerateKeyPair(kind: kind)
             var sig1 = secretKey.Sign(message: msg, randomize: true)
             var sig2 = secretKey.Sign(message: msg, randomize: false)
             XCTAssertTrue(publicKey.Verify(message: msg, signature: sig1))
@@ -30,9 +30,9 @@ final class SignVerifyTest: XCTestCase {
     }
 
     func test() throws {
-        try doTest(Dilithium.ML_DSA_44)
-        try doTest(Dilithium.ML_DSA_65)
-        try doTest(Dilithium.ML_DSA_87)
+        try doTest(.ML_DSA_44)
+        try doTest(.ML_DSA_65)
+        try doTest(.ML_DSA_87)
     }
 
 }

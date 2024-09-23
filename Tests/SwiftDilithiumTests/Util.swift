@@ -107,11 +107,11 @@ struct Util {
     static func makeDilithium(_ kind: String) -> Dilithium {
         switch kind {
         case "DSA44":
-            return Dilithium.ML_DSA_44
+            return Dilithium(.ML_DSA_44)
         case "DSA65":
-            return Dilithium.ML_DSA_65
+            return Dilithium(.ML_DSA_65)
         case "DSA87":
-            return Dilithium.ML_DSA_87
+            return Dilithium(.ML_DSA_87)
         default:
             fatalError("Wrong KATTEST kind " + kind)
         }

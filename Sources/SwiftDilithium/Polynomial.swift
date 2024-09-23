@@ -7,6 +7,7 @@
 
 struct Polynomial: Equatable {
 
+    // 1753 ^ BitRev8(k) % Q for k in 1 ..< 256
     // From [FIPS 204] - Appendix B
     static let zetas = [
                 0, 4808194, 3765607, 3761513, 5178923, 5496691, 5234739, 5178987,

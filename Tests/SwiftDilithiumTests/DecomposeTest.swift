@@ -10,7 +10,8 @@ import XCTest
 
 final class DecomposeTest: XCTestCase {
 
-    func doTest(_ d: Dilithium) {
+    func doTest(_ kind: Kind) {
+        let d = Dilithium(kind)
         for _ in 0 ..< 100 {
             let r = Int.random(in: 0 ..< Dilithium.Q)
             let (r1, r0) = d.Decompose(r)
@@ -19,9 +20,9 @@ final class DecomposeTest: XCTestCase {
     }
 
     func test() throws {
-        doTest(Dilithium.ML_DSA_44)
-        doTest(Dilithium.ML_DSA_65)
-        doTest(Dilithium.ML_DSA_87)
+        doTest(.ML_DSA_44)
+        doTest(.ML_DSA_65)
+        doTest(.ML_DSA_87)
     }
 
 }

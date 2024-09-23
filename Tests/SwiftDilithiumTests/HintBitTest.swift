@@ -10,7 +10,8 @@ import XCTest
 
 final class HintBitTest: XCTestCase {
 
-    func doTest(_ d: Dilithium) {
+    func doTest(_ kind: Kind) {
+        let d = Dilithium(kind)
         var h = Vector(d.k)
         for i in 0 ..< d.omega {
             h.polynomial[i & 3].coef[(i >> 2) * 3] = 1
@@ -22,9 +23,9 @@ final class HintBitTest: XCTestCase {
     }
 
     func test() throws {
-        doTest(Dilithium.ML_DSA_44)
-        doTest(Dilithium.ML_DSA_65)
-        doTest(Dilithium.ML_DSA_87)
+        doTest(.ML_DSA_44)
+        doTest(.ML_DSA_65)
+        doTest(.ML_DSA_87)
     }
 
 }

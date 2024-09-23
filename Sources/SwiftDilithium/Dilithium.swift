@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import ASN1
 import Digest
 
 /// Unsigned 8 bit value
@@ -16,32 +17,18 @@ public typealias Bytes = [UInt8]
 
 public struct Dilithium {
     
-    
-    // MARK: Dilithium Instances
-    
-    /// The ML_DSA_44 instance
-    public static let ML_DSA_44 = Dilithium(DilithiumParameters.DSA44)
 
-    /// The ML_DSA_65 instance
-    public static let ML_DSA_65 = Dilithium(DilithiumParameters.DSA65)
-
-    /// The ML_DSA_87 instance
-    public static let ML_DSA_87 = Dilithium(DilithiumParameters.DSA87)
-
-    
-    // MARK: Instance Methods
+    // MARK: Static Methods
 
     /// Generates a secret key and a public key
     ///
+    /// - Parameters:
+    ///   - kind: The Dilithium kind
     /// - Returns: The secret key `sk` and the public key `pk`
-    public func GenerateKeyPair() -> (sk: SecretKey, pk: PublicKey) {
-        let (pk, sk) = KeyGen()
-        do {
-            return (try SecretKey(keyBytes: sk), try PublicKey(keyBytes: pk))
-        } catch {
-            // Shouldn't happen
-            fatalError("GenerateKeyPair inconsistency")
-        }
+    public static func GenerateKeyPair(kind: Kind) -> (sk: SecretKey, pk: PublicKey) {
+        let dilithium = Dilithium(kind)
+        let (pk, sk) = dilithium.KeyGen()
+        return (SecretKey(sk, dilithium), PublicKey(pk, dilithium))
     }
 
     static func randomBytes(_ n: Int) -> Bytes {
@@ -52,15 +39,7 @@ public struct Dilithium {
         return bytes
     }
 
-    static let DSA44pkSize = 1312
-    static let DSA44skSize = 2560
-    static let DSA65pkSize = 1952
-    static let DSA65skSize = 4032
-    static let DSA87pkSize = 2592
-    static let DSA87skSize = 4896
-
     static let BLANK = Int.max
-    
     static let Q = 8380417    // modulus
     static let Q2 = 4190208   // Q / 2
     static let D = 13         // dropped bits from t
@@ -76,18 +55,27 @@ public struct Dilithium {
     let eta: Int
     let beta: Int
     let omega: Int
+    let sigSize: Int
+    let pkSize: Int
+    let skSize: Int
+    let oid: ASN1ObjectIdentifier
 
-    init(_ dp: DilithiumParameters) {
-        self.tau = dp.tau
-        self.entr = dp.entr
-        self.lambda = dp.lambda
-        self.gamma1 = dp.gamma1
-        self.gamma2 = dp.gamma2
-        self.k = dp.k
-        self.l = dp.l
-        self.eta = dp.eta
-        self.beta = dp.beta
-        self.omega = dp.omega
+    init(_ kind: Kind) {
+        let param = Parameters.paramsFromKind(kind)
+        self.tau = param.tau
+        self.entr = param.entr
+        self.lambda = param.lambda
+        self.gamma1 = param.gamma1
+        self.gamma2 = param.gamma2
+        self.k = param.k
+        self.l = param.l
+        self.eta = param.eta
+        self.beta = param.beta
+        self.omega = param.omega
+        self.sigSize = param.sigSize
+        self.pkSize = param.pkSize
+        self.skSize = param.skSize
+        self.oid = param.oid
     }
 
     static func bitlen(_ x: Int) -> Int {
@@ -105,33 +93,29 @@ public struct Dilithium {
         let t = x % Dilithium.Q
         return t < 0 ? t + Dilithium.Q : t
     }
-    
+
     // [FIPS 204] - section 2.3
     static func modPM(_ r: Int, _ a: Int) -> Int {
-        assert(a > 0)
-        var t = r % a
-        if a & 1 == 0 {
-            // a is even
-            if t > a / 2 {
-                t -= a
-            } else if t <= -a / 2 {
-                t += a
-            }
-            assert(-a / 2 < t && t <= a / 2)
+        assert(a > 0 && a & 1 == 0)
+        let t = r % a
+        if t > a / 2 {
+            return t - a
+        } else if t <= -a / 2 {
+            return t + a
         } else {
-            // a is odd
-            if t > (a - 1) / 2 {
-                t -= a
-            } else if t < -(a - 1) / 2 {
-                t += a
-            }
-            assert(-(a - 1) / 2 <= t && t <= (a - 1) / 2)
+            return t
         }
-        return t
     }
 
     static func modPMQ(_ r: Int) -> Int {
-        return modPM(r, Dilithium.Q)
+        let t = r % Dilithium.Q
+        if t > Dilithium.Q2 {
+            return t - Dilithium.Q
+        } else if t < -Dilithium.Q2 {
+            return t + Dilithium.Q
+        } else {
+            return t
+        }
     }
 
     // [FIPS 204] - Algorithm 1
@@ -156,7 +140,7 @@ public struct Dilithium {
     }
 
     // [FIPS 204] - Algorithm 4
-    func hashSign(_ sk: Bytes, _ M: Bytes, _ ctx: Bytes, _ PH: DilithiumPreHash, _ randomize: Bool) -> Bytes {
+    func hashSign(_ sk: Bytes, _ M: Bytes, _ ctx: Bytes, _ PH: PreHash, _ randomize: Bool) -> Bytes {
         assert(sk.count == 128 + 32 * ((self.l + self.k) * Dilithium.bitlen(self.eta << 1) + self.k * Dilithium.D))
         assert(ctx.count < 256)
         var OID: Bytes
@@ -180,7 +164,7 @@ public struct Dilithium {
     }
 
     // [FIPS 204] - Algorithm 5
-    func hashVerify(_ pk: Bytes, _ M: Bytes, _ sigma: Bytes, _ ctx: Bytes, _ PH: DilithiumPreHash) -> Bool {
+    func hashVerify(_ pk: Bytes, _ M: Bytes, _ sigma: Bytes, _ ctx: Bytes, _ PH: PreHash) -> Bool {
         assert(pk.count == 32 + 32 * self.k * (Dilithium.bitlen(Dilithium.Q - 1) - Dilithium.D))
         assert(ctx.count < 256)
         var OID: Bytes

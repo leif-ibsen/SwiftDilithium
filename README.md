@@ -4,10 +4,12 @@ SwiftDilithium is a Swift implementation of NIST FIPS 204: *Module-Lattice-Based
 
 SwiftDilithium functionality:
 
+* Support for the three Dilithium instances defined in the standard
 * Create public and secret keys
 * Sign messages - deterministically or randomized
 * Verify signatures
-* Supports the three Dilithium instances defined in the proposed standard
+* Store keys in their PEM encoded ASN1 representation
+* Restore keys from their PEM encoded ASN1 representation
 
 SwiftDilithium requires Swift 5.0. It also requires that the `Int` and `UInt` types be 64 bit types.
 

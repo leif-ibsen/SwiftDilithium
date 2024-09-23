@@ -2,11 +2,11 @@
 //  File.swift
 //  
 //
-//  Created by Leif Ibsen on 24/08/2024.
+//  Created by Leif Ibsen on 18/09/2024.
 //
 
 /// The Dilithium pre-hash functions
-public enum DilithiumPreHash {
+public enum PreHash {
 
     /// SHA2-256 message digest
     case SHA256

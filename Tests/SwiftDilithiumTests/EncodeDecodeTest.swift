@@ -10,7 +10,8 @@ import XCTest
 
 final class EncodeDecodeTest: XCTestCase {
     
-    func doTest(_ d: Dilithium) {
+    func doTest(_ kind: Kind) {
+        let d = Dilithium(kind)
         let (pk, sk) = d.KeyGen()
         let (rhox, t1x) = d.pkDecode(pk)
         let pk1 = d.pkEncode(rhox, t1x)
@@ -22,9 +23,9 @@ final class EncodeDecodeTest: XCTestCase {
     
     func test() throws {
         for _ in 0 ..< 10 {
-            doTest(Dilithium.ML_DSA_44)
-            doTest(Dilithium.ML_DSA_65)
-            doTest(Dilithium.ML_DSA_87)
+            doTest(.ML_DSA_44)
+            doTest(.ML_DSA_65)
+            doTest(.ML_DSA_87)
         }
     }
     

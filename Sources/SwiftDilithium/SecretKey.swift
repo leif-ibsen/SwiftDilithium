@@ -5,13 +5,32 @@
 //  Created by Leif Ibsen on 08/03/2024.
 //
 
-/// The Dilithium secret key
-public struct SecretKey {
+import ASN1
+import Digest
+
+public struct SecretKey: CustomStringConvertible, Equatable {
     
     let dilithium: Dilithium
-    
+
+
+    // MARK: Properties
+
     /// The key bytes
-    public let keyBytes: Bytes
+    public internal(set) var keyBytes: Bytes
+    /// The ASN1 encoding of `self`
+    public var asn1: ASN1 { get { return ASN1Sequence().add(ASN1.ZERO).add(ASN1Sequence().add(self.dilithium.oid)).add(ASN1OctetString(ASN1OctetString(self.keyBytes).encode())) } }
+    /// The PEM encoding of `self.asn1`
+    public var pem: String { get { return Base64.pemEncode(self.asn1.encode(), "PRIVATE KEY") } }
+    /// A textual representation of the ASN1 encoding of `self`
+    public var description: String { get { return self.asn1.description } }
+
+
+    // MARK: Constructors
+
+    init(_ keyBytes: Bytes, _ dilithium: Dilithium) {
+        self.keyBytes = keyBytes
+        self.dilithium = dilithium
+    }
 
     /// Creates a secret key from its key bytes
     ///
@@ -19,18 +38,61 @@ public struct SecretKey {
     ///   - keyBytes: The key bytes
     /// - Throws: An exception if the key bytes has wrong size
     public init(keyBytes: Bytes) throws {
-        self.keyBytes = keyBytes
-        if keyBytes.count == Dilithium.DSA44skSize {
-            self.dilithium = Dilithium.ML_DSA_44
-        } else if keyBytes.count == Dilithium.DSA65skSize {
-            self.dilithium = Dilithium.ML_DSA_65
-        } else if keyBytes.count == Dilithium.DSA87skSize {
-            self.dilithium = Dilithium.ML_DSA_87
-        } else {
-            throw DilithiumException.secretKeySize(value: keyBytes.count)
+        for kind in Kind.allCases {
+            if keyBytes.count == Parameters.paramsFromKind(kind).skSize {
+                self.init(keyBytes, Dilithium(kind))
+                return
+            }
         }
+        throw Exception.secretKeySize(value: keyBytes.count)
     }
-    
+
+    /// Creates a secret key from its PEM encoding
+    ///
+    /// - Parameters:
+    ///   - pem: The secret key PEM encoding
+    /// - Throws: An exception if the PEM encoding is wrong
+    public init(pem: String) throws {
+        guard let der = Base64.pemDecode(pem, "PRIVATE KEY") else {
+            throw Exception.pemStructure
+        }
+        let asn1 = try ASN1.build(der)
+        guard let seq = asn1 as? ASN1Sequence else {
+            throw Exception.asn1Structure
+        }
+        if seq.getValue().count < 3 {
+            throw Exception.asn1Structure
+        }
+        guard let int = seq.get(0) as? ASN1Integer else {
+            throw Exception.asn1Structure
+        }
+        if int != ASN1.ZERO {
+            throw Exception.asn1Structure
+        }
+        guard let seq1 = seq.get(1) as? ASN1Sequence else {
+            throw Exception.asn1Structure
+        }
+        guard let octets = seq.get(2) as? ASN1OctetString else {
+            throw Exception.asn1Structure
+        }
+        if seq1.getValue().count < 1 {
+            throw Exception.asn1Structure
+        }
+        guard let oid = seq1.get(0) as? ASN1ObjectIdentifier else {
+            throw Exception.asn1Structure
+        }
+        if oid != Parameters.DSA44.oid && oid != Parameters.DSA65.oid && oid != Parameters.DSA87.oid {
+            throw Exception.asn1Structure
+        }
+        guard let seq2 = try ASN1.build(octets.value) as? ASN1OctetString else {
+            throw Exception.asn1Structure
+        }
+        try self.init(keyBytes: seq2.value)
+    }
+
+
+    // MARK: Instance Methods
+
     /// Signs a message - pure version
     ///
     /// - Parameters:
@@ -51,7 +113,7 @@ public struct SecretKey {
     /// - Throws: An exception if the context size is larger than 255
     public func Sign(message: Bytes, context: Bytes, randomize: Bool = true) throws -> Bytes {
         guard context.count < 256 else {
-            throw DilithiumException.contextSize(value: context.count)
+            throw Exception.contextSize(value: context.count)
         }
         return self.dilithium.Sign(self.keyBytes, message, context, randomize)
     }
@@ -63,7 +125,7 @@ public struct SecretKey {
     ///   - ph: The pre-hash function
     ///   - randomize: If `true`, generate a randomized signature, else generate a deterministic signature, default is `true`
     /// - Returns: The signature
-    public func SignPrehash(message: Bytes, ph: DilithiumPreHash, randomize: Bool = true) -> Bytes {
+    public func Sign(message: Bytes, ph: PreHash, randomize: Bool = true) -> Bytes {
         return self.dilithium.hashSign(self.keyBytes, message, [], ph, randomize)
     }
     
@@ -76,9 +138,9 @@ public struct SecretKey {
     ///   - randomize: If `true`, generate a randomized signature, else generate a deterministic signature, default is `true`
     /// - Returns: The signature
     /// - Throws: An exception if the context size is larger than 255
-    public func SignPrehash(message: Bytes, ph: DilithiumPreHash, context: Bytes, randomize: Bool = true) throws -> Bytes {
+    public func Sign(message: Bytes, ph: PreHash, context: Bytes, randomize: Bool = true) throws -> Bytes {
         guard context.count < 256 else {
-            throw DilithiumException.contextSize(value: context.count)
+            throw Exception.contextSize(value: context.count)
         }
         return self.dilithium.hashSign(self.keyBytes, message, context, ph, randomize)
     }

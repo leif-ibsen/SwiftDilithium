@@ -5,14 +5,34 @@
 //  Created by Leif Ibsen on 01/11/2023.
 //
 
-/// The Dilithium public key
-public struct PublicKey {
+import ASN1
+import Digest
+
+public struct PublicKey: CustomStringConvertible, Equatable {
    
-    let signatureSize: Int
     let dilithium: Dilithium
+    let signatureSize: Int
+
+
+    // MARK: Properties
 
     /// The key bytes
-    public let keyBytes: Bytes
+    public internal(set) var keyBytes: Bytes
+    /// The ASN1 encoding of `self`
+    public var asn1: ASN1 { get { do { return ASN1Sequence().add(ASN1Sequence().add(self.dilithium.oid)).add(try ASN1BitString(self.keyBytes, 0)) } catch { return ASN1.NULL } } }
+    /// The PEM encoding of `self.asn1`
+    public var pem: String { get { return Base64.pemEncode(self.asn1.encode(), "PUBLIC KEY") } }
+    /// A textual representation of the ASN1 encoding of `self`
+    public var description: String { get { return self.asn1.description } }
+
+
+    // MARK: Constructors
+
+    init(_ keyBytes: Bytes, _ dilithium: Dilithium) {
+        self.keyBytes = keyBytes
+        self.signatureSize = dilithium.sigSize
+        self.dilithium = dilithium
+    }
 
     /// Creates a public key from its key bytes
     ///
@@ -20,20 +40,59 @@ public struct PublicKey {
     ///   - keyBytes: The key bytes
     /// - Throws: An exception if the key bytes has wrong size
     public init(keyBytes: Bytes) throws {
-        self.keyBytes = keyBytes
-        if keyBytes.count == Dilithium.DSA44pkSize {
-            self.dilithium = Dilithium.ML_DSA_44
-            self.signatureSize = 2420
-        } else if keyBytes.count == Dilithium.DSA65pkSize {
-            self.dilithium = Dilithium.ML_DSA_65
-            self.signatureSize = 3309
-        } else if keyBytes.count == Dilithium.DSA87pkSize {
-            self.dilithium = Dilithium.ML_DSA_87
-            self.signatureSize = 4627
+        for kind in Kind.allCases {
+            if keyBytes.count == Parameters.paramsFromKind(kind).pkSize {
+                self.init(keyBytes, Dilithium(kind))
+                return
+            }
+        }
+        throw Exception.publicKeySize(value: keyBytes.count)
+    }
+
+    /// Creates a public key from its PEM encoding
+    ///
+    /// - Parameters:
+    ///   - pem: The public key PEM encoding
+    /// - Throws: An exception if the PEM encoding is wrong
+    public init(pem: String) throws {
+        guard let der = Base64.pemDecode(pem, "PUBLIC KEY") else {
+            throw Exception.pemStructure
+        }
+        let asn1 = try ASN1.build(der)
+        guard let seq = asn1 as? ASN1Sequence else {
+            throw Exception.asn1Structure
+        }
+        if seq.getValue().count < 2 {
+            throw Exception.asn1Structure
+        }
+        guard let seq1 = seq.get(0) as? ASN1Sequence else {
+            throw Exception.asn1Structure
+        }
+        guard let bits = seq.get(1) as? ASN1BitString else {
+            throw Exception.asn1Structure
+        }
+        if seq1.getValue().count < 1 {
+            throw Exception.asn1Structure
+        }
+        guard let oid = seq1.get(0) as? ASN1ObjectIdentifier else {
+            throw Exception.asn1Structure
+        }
+        guard bits.unused == 0 else {
+            throw Exception.asn1Structure
+        }
+        if oid == Parameters.DSA44.oid && bits.bits.count == Parameters.DSA44.pkSize {
+            try self.init(keyBytes: bits.bits)
+        } else if oid == Parameters.DSA65.oid && bits.bits.count == Parameters.DSA65.pkSize {
+            try self.init(keyBytes: bits.bits)
+        } else if oid == Parameters.DSA87.oid && bits.bits.count == Parameters.DSA87.pkSize {
+            try self.init(keyBytes: bits.bits)
         } else {
-            throw DilithiumException.publicKeySize(value: keyBytes.count)
+            throw Exception.asn1Structure
         }
     }
+
+
+    // MARK: Instance Methods
 
     /// Verifies a signature - pure version
     /// - Parameters:
@@ -56,7 +115,7 @@ public struct PublicKey {
     /// - Throws: An exception if the context size is larger than 255
     public func Verify(message: Bytes, signature: Bytes, context: Bytes) throws -> Bool {        
         guard context.count < 256 else {
-            throw DilithiumException.contextSize(value: context.count)
+            throw Exception.contextSize(value: context.count)
         }
         guard signature.count == self.signatureSize else {
             return false
@@ -70,7 +129,7 @@ public struct PublicKey {
     ///   - signature: The signature to verify
     ///   - ph: The pre-hash function
     /// - Returns: `true` if the signature is verified, else `false`
-    public func VerifyPrehash(message: Bytes, signature: Bytes, ph: DilithiumPreHash) -> Bool {
+    public func Verify(message: Bytes, signature: Bytes, ph: PreHash) -> Bool {
         guard signature.count == self.signatureSize else {
             return false
         }
@@ -84,7 +143,7 @@ public struct PublicKey {
     ///   - ph: The pre-hash function
     ///   - context: The context string
     /// - Returns: `true` if the signature is verified, else `false`
-    public func VerifyPrehash(message: Bytes, signature: Bytes, ph: DilithiumPreHash, context: Bytes) -> Bool {
+    public func Verify(message: Bytes, signature: Bytes, ph: PreHash, context: Bytes) -> Bool {
         guard signature.count == self.signatureSize && context.count < 256 else {
             return false
         }

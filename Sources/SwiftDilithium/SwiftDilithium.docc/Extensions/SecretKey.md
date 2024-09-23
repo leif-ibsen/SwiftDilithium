@@ -1,24 +1,32 @@
 # ``SwiftDilithium/SecretKey``
 
+The SecretKey structure
+
+## Overview
+
 A secret key signs a message. In the pure version the message itself is signed.
-In the pre-hashed version a hash of the message using one of the ``DilithiumPreHash`` functions is signed.
+In the pre-hashed version a hash of the message using one of the ``PreHash`` functions is signed.
 
 ## Topics
 
 ### Properties
 
 - ``keyBytes``
+- ``asn1``
+- ``pem``
+- ``description``
 
-### Constructor
+### Constructors
 
 - ``init(keyBytes:)``
+- ``init(pem:)``
 
 ### Sign
 
 - ``Sign(message:randomize:)``
 - ``Sign(message:context:randomize:)``
-- ``SignPrehash(message:ph:randomize:)``
-- ``SignPrehash(message:ph:context:randomize:)``
+- ``Sign(message:ph:randomize:)``
+- ``Sign(message:ph:context:randomize:)``
 
 ### Equality
 
