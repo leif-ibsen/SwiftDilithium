@@ -52,7 +52,9 @@ final class KATTestVerify: XCTestCase {
     func test() throws {
         for t in katTests {
             let dilithium = Util.makeDilithium(t.kind)
-            let ok = dilithium.VerifyInternal(t.pk, t.message, t.signature)
+            let rho = Bytes(t.pk[0 ..< 32])
+            let aHat = dilithium.ExpandA(rho)
+            let ok = dilithium.VerifyInternal(t.pk, t.message, t.signature, aHat)
             if ok {
                 XCTAssertEqual(t.pass, "true")
             } else {

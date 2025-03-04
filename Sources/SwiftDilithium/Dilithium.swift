@@ -88,19 +88,19 @@ public struct Dilithium {
         let t = x % m
         return t < 0 ? t + m : t
     }
-    
+
     static func modQ(_ x: Int) -> Int {
+        assert(-(Dilithium.Q * Dilithium.Q) < x && x < Dilithium.Q * Dilithium.Q)
         let t = x % Dilithium.Q
         return t < 0 ? t + Dilithium.Q : t
     }
 
     // [FIPS 204] - section 2.3
     static func modPM(_ r: Int, _ a: Int) -> Int {
-        assert(a > 0 && a & 1 == 0)
         let t = r % a
         if t > a / 2 {
             return t - a
-        } else if t <= -a / 2 {
+        } else if t < -a / 2 {
             return t + a
         } else {
             return t
@@ -124,23 +124,23 @@ public struct Dilithium {
     }
     
     // [FIPS 204] - Algorithm 2
-    func Sign(_ sk: Bytes, _ M: Bytes, _ ctx: Bytes, _ randomize: Bool) -> Bytes {
+    func Sign(_ sk: Bytes, _ M: Bytes, _ ctx: Bytes, _ randomize: Bool, _ aHat: Matrix) -> Bytes {
         assert(sk.count == 128 + 32 * ((self.l + self.k) * Dilithium.bitlen(self.eta << 1) + self.k * Dilithium.D))
         assert(ctx.count < 256)
         let M1: Bytes = [0] + [Byte(ctx.count)] + ctx + M
-        return SignInternal(sk, M1, randomize ? Dilithium.randomBytes(32) : Bytes(repeating: 0, count: 32))
+        return SignInternal(sk, M1, randomize ? Dilithium.randomBytes(32) : Bytes(repeating: 0, count: 32), aHat)
     }
 
     // [FIPS 204] - Algorithm 3
-    func Verify(_ pk: Bytes, _ M: Bytes, _ sigma: Bytes, _ ctx: Bytes) -> Bool {
+    func Verify(_ pk: Bytes, _ M: Bytes, _ sigma: Bytes, _ ctx: Bytes, _ aHat: Matrix) -> Bool {
         assert(pk.count == 32 + 32 * self.k * (Dilithium.bitlen(Dilithium.Q - 1) - Dilithium.D))
         assert(ctx.count < 256)
         let M1: Bytes = [0] + [Byte(ctx.count)] + ctx + M
-        return VerifyInternal(pk, M1, sigma)
+        return VerifyInternal(pk, M1, sigma, aHat)
     }
 
     // [FIPS 204] - Algorithm 4
-    func hashSign(_ sk: Bytes, _ M: Bytes, _ ctx: Bytes, _ PH: PreHash, _ randomize: Bool) -> Bytes {
+    func hashSign(_ sk: Bytes, _ M: Bytes, _ ctx: Bytes, _ PH: PreHash, _ randomize: Bool, _ aHat: Matrix) -> Bytes {
         assert(sk.count == 128 + 32 * ((self.l + self.k) * Dilithium.bitlen(self.eta << 1) + self.k * Dilithium.D))
         assert(ctx.count < 256)
         var OID: Bytes
@@ -160,11 +160,11 @@ public struct Dilithium {
             phM = XOF(.XOF256, M).read(512)
         }
         let M1: Bytes = [1] + [Byte(ctx.count)] + ctx + OID + phM
-        return SignInternal(sk, M1, randomize ? Dilithium.randomBytes(32) : Bytes(repeating: 0, count: 32))
+        return SignInternal(sk, M1, randomize ? Dilithium.randomBytes(32) : Bytes(repeating: 0, count: 32), aHat)
     }
 
     // [FIPS 204] - Algorithm 5
-    func hashVerify(_ pk: Bytes, _ M: Bytes, _ sigma: Bytes, _ ctx: Bytes, _ PH: PreHash) -> Bool {
+    func hashVerify(_ pk: Bytes, _ M: Bytes, _ sigma: Bytes, _ ctx: Bytes, _ PH: PreHash, _ aHat: Matrix) -> Bool {
         assert(pk.count == 32 + 32 * self.k * (Dilithium.bitlen(Dilithium.Q - 1) - Dilithium.D))
         assert(ctx.count < 256)
         var OID: Bytes
@@ -184,7 +184,7 @@ public struct Dilithium {
             phM = XOF(.XOF256, M).read(512)
         }
         let M1: Bytes = [1] + [Byte(ctx.count)] + ctx + OID + phM
-        return VerifyInternal(pk, M1, sigma)
+        return VerifyInternal(pk, M1, sigma, aHat)
     }
 
     // [FIPS 204] - Algorithm 6
@@ -205,13 +205,12 @@ public struct Dilithium {
     }
 
     // [FIPS 204] - Algorithm 7
-    func SignInternal(_ sk: Bytes, _ M: Bytes, _ rnd: Bytes) -> Bytes {
+    func SignInternal(_ sk: Bytes, _ M: Bytes, _ rnd: Bytes, _ aHat: Matrix) -> Bytes {
         assert(sk.count == 128 + 32 * ((self.l + self.k) * Dilithium.bitlen(self.eta << 1) + self.k * Dilithium.D))
-        let (rho, K, tr, s1, s2, t0) = skDecode(sk)
+        let (_, K, tr, s1, s2, t0) = skDecode(sk)
         let s1Hat = s1.NTT()
         let s2Hat = s2.NTT()
         let t0Hat = t0.NTT()
-        let aHat = ExpandA(rho)
         let my = XOF(.XOF256, tr + M).read(64)
         let rho1 = XOF(.XOF256, K + rnd + my).read(64)
         var kappa = 0
@@ -245,17 +244,16 @@ public struct Dilithium {
         }
         return sigEncode(cTilde, z.modPMQ(), h)
     }
-    
+
     // [FIPS 204] - Algorithm 8
-    func VerifyInternal(_ pk: Bytes, _ M: Bytes, _ sigma: Bytes) -> Bool {
+    func VerifyInternal(_ pk: Bytes, _ M: Bytes, _ sigma: Bytes, _ aHat: Matrix) -> Bool {
         assert(pk.count == 32 + 32 * self.k * (Dilithium.bitlen(Dilithium.Q - 1) - Dilithium.D))
         assert(sigma.count == self.lambda >> 2 + 32 * self.l * (1 + Dilithium.bitlen(self.gamma1 - 1)) + self.omega + self.k)
-        let (rho, t1) = pkDecode(pk)
+        let (_, t1) = pkDecode(pk)
         let (cTilde, z, _h) = sigDecode(sigma)
         guard let h = _h else {
             return false
         }
-        let aHat = ExpandA(rho)
         let tr = XOF(.XOF256, pk).read(64)
         let my = XOF(.XOF256, tr + M).read(64)
         let c = SampleInBall(cTilde)

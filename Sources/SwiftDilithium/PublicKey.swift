@@ -12,7 +12,7 @@ public struct PublicKey: CustomStringConvertible, Equatable {
    
     let dilithium: Dilithium
     let signatureSize: Int
-
+    let aHat: Matrix
 
     // MARK: Properties
 
@@ -32,6 +32,8 @@ public struct PublicKey: CustomStringConvertible, Equatable {
         self.keyBytes = keyBytes
         self.signatureSize = dilithium.sigSize
         self.dilithium = dilithium
+        let rho = Bytes(keyBytes[0 ..< 32])
+        self.aHat = self.dilithium.ExpandA(rho)
     }
 
     /// Creates a public key from its key bytes
@@ -103,7 +105,7 @@ public struct PublicKey: CustomStringConvertible, Equatable {
         guard signature.count == self.signatureSize else {
             return false
         }
-        return self.dilithium.Verify(self.keyBytes, message, signature, [])
+        return self.dilithium.Verify(self.keyBytes, message, signature, [], self.aHat)
     }
 
     /// Verifies a signature - pure version with context
@@ -120,7 +122,7 @@ public struct PublicKey: CustomStringConvertible, Equatable {
         guard signature.count == self.signatureSize else {
             return false
         }
-        return self.dilithium.Verify(self.keyBytes, message, signature, context)
+        return self.dilithium.Verify(self.keyBytes, message, signature, context, self.aHat)
     }
 
     /// Verifies a signature - pre-hashed version
@@ -133,7 +135,7 @@ public struct PublicKey: CustomStringConvertible, Equatable {
         guard signature.count == self.signatureSize else {
             return false
         }
-        return self.dilithium.hashVerify(self.keyBytes, message, signature, [], ph)
+        return self.dilithium.hashVerify(self.keyBytes, message, signature, [], ph, self.aHat)
     }
 
     /// Verifies a signature - pre-hashed version with context
@@ -147,7 +149,7 @@ public struct PublicKey: CustomStringConvertible, Equatable {
         guard signature.count == self.signatureSize && context.count < 256 else {
             return false
         }
-        return self.dilithium.hashVerify(self.keyBytes, message, signature, context, ph)
+        return self.dilithium.hashVerify(self.keyBytes, message, signature, context, ph, self.aHat)
     }
 
     /// Equal

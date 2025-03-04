@@ -11,7 +11,7 @@ import Digest
 public struct SecretKey: CustomStringConvertible, Equatable {
     
     let dilithium: Dilithium
-
+    let aHat: Matrix
 
     // MARK: Properties
 
@@ -30,6 +30,8 @@ public struct SecretKey: CustomStringConvertible, Equatable {
     init(_ keyBytes: Bytes, _ dilithium: Dilithium) {
         self.keyBytes = keyBytes
         self.dilithium = dilithium
+        let rho = Bytes(keyBytes[0 ..< 32])
+        self.aHat = self.dilithium.ExpandA(rho)
     }
 
     /// Creates a secret key from its key bytes
@@ -100,7 +102,7 @@ public struct SecretKey: CustomStringConvertible, Equatable {
     ///   - randomize: If `true`, generate a randomized signature, else generate a deterministic signature, default is `true`
     /// - Returns: The signature
     public func Sign(message: Bytes, randomize: Bool = true) -> Bytes {
-        return self.dilithium.Sign(self.keyBytes, message, [], randomize)
+        return self.dilithium.Sign(self.keyBytes, message, [], randomize, self.aHat)
     }
     
     /// Signs a message - pure version with context
@@ -115,7 +117,7 @@ public struct SecretKey: CustomStringConvertible, Equatable {
         guard context.count < 256 else {
             throw Exception.contextSize(value: context.count)
         }
-        return self.dilithium.Sign(self.keyBytes, message, context, randomize)
+        return self.dilithium.Sign(self.keyBytes, message, context, randomize, self.aHat)
     }
     
     /// Signs a message - pre-hashed version
@@ -126,7 +128,7 @@ public struct SecretKey: CustomStringConvertible, Equatable {
     ///   - randomize: If `true`, generate a randomized signature, else generate a deterministic signature, default is `true`
     /// - Returns: The signature
     public func Sign(message: Bytes, ph: PreHash, randomize: Bool = true) -> Bytes {
-        return self.dilithium.hashSign(self.keyBytes, message, [], ph, randomize)
+        return self.dilithium.hashSign(self.keyBytes, message, [], ph, randomize, self.aHat)
     }
     
     /// Signs a message - pre-hashed version with context
@@ -142,7 +144,7 @@ public struct SecretKey: CustomStringConvertible, Equatable {
         guard context.count < 256 else {
             throw Exception.contextSize(value: context.count)
         }
-        return self.dilithium.hashSign(self.keyBytes, message, context, ph, randomize)
+        return self.dilithium.hashSign(self.keyBytes, message, context, ph, randomize, self.aHat)
     }
 
     /// Equal

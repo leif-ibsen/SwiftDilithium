@@ -9,7 +9,7 @@ import Foundation
 @testable import SwiftDilithium
 
 struct Util {
-    
+
     static func hex2bytes(_ x: String) -> Bytes {
         let b = [Byte](x.utf8)
         var bytes = Bytes(repeating: 0, count: b.count / 2)

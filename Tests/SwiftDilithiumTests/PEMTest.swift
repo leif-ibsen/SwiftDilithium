@@ -15,7 +15,9 @@ final class PEMTest: XCTestCase {
         let pk1 = try PublicKey(pem: pk.pem)
         let sk1 = try SecretKey(pem: sk.pem)
         XCTAssertEqual(pk, pk1)
+        XCTAssertEqual(pk.aHat, pk1.aHat)
         XCTAssertEqual(sk, sk1)
+        XCTAssertEqual(sk.aHat, sk1.aHat)
     }
 
     func test() throws {

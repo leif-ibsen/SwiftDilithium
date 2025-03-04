@@ -53,7 +53,9 @@ final class KATTestSign: XCTestCase {
     func test() throws {
         for t in katTests {
             let dilithium = Util.makeDilithium(t.kind)
-            let signature = dilithium.SignInternal(t.sk, t.message, t.rnd)
+            let rho = Bytes(t.sk[0 ..< 32])
+            let aHat = dilithium.ExpandA(rho)
+            let signature = dilithium.SignInternal(t.sk, t.message, t.rnd, aHat)
             XCTAssertEqual(signature, t.signature)
         }
     }

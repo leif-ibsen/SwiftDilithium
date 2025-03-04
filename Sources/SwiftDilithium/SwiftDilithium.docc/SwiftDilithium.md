@@ -21,7 +21,7 @@ To use SwiftDilithium, in your project *Package.swift* file add a dependency lik
 
 ```swift
 dependencies: [
-  .package(url: "https://github.com/leif-ibsen/SwiftDilithium", from: "3.0.0"),
+  .package(url: "https://github.com/leif-ibsen/SwiftDilithium", from: "3.1.0"),
 ]
 ```
 
@@ -35,7 +35,7 @@ dependencies: [
 ],
 ```
 
-SwiftDilithium doesn't do big integer arithmetic, but the ASN1 package depends on the BigInt package.
+SwiftDilithium does not do big integer arithmetic, but the ASN1 package depends on the BigInt package.
 
 > Important:
 SwiftDilithium requires Swift 5.0. It also requires that the `Int` and `UInt` types be 64 bit types.

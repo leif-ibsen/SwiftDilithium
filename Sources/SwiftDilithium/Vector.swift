@@ -9,7 +9,7 @@ struct Vector: Equatable {
         
     var polynomial: [Polynomial]
     let n: Int
-        
+
     init(_ n: Int) {
         self.polynomial = [Polynomial](repeating: Polynomial(), count: n)
         self.n = n
