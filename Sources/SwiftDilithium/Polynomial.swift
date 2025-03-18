@@ -60,19 +60,21 @@ struct Polynomial: Equatable {
         var w = self.coef
         var m = 0
         var len = 128
-        while len >= 1 {
-            var start = 0
-            while start < 256 {
-                m += 1
-                let z = Polynomial.zetas[m]
-                for j in start ..< start + len {
-                    let t = Dilithium.modQ(z * w[j + len])
-                    w[j + len] = Dilithium.modQ(w[j] - t)
-                    w[j] = Dilithium.modQ(w[j] + t)
+        w.withUnsafeMutableBufferPointer { wU in
+            while len >= 1 {
+                var start = 0
+                while start < 256 {
+                    m += 1
+                    let z = Polynomial.zetas[m]
+                    for j in start ..< start + len {
+                        let t = Dilithium.modQ(z * wU[j + len])
+                        wU[j + len] = Dilithium.modQ(wU[j] - t)
+                        wU[j] = Dilithium.modQ(wU[j] + t)
+                    }
+                    start += len << 1
                 }
-                start += len << 1
+                len >>= 1
             }
-            len >>= 1
         }
         return Polynomial(w)
     }
@@ -82,23 +84,25 @@ struct Polynomial: Equatable {
         var w = self.coef
         var m = 256
         var len = 1
-        while len < 256 {
-            var start = 0
-            while start < 256 {
-                m -= 1
-                let z = -Polynomial.zetas[m]
-                for j in start ..< start + len {
-                    let t = w[j]
-                    w[j] = Dilithium.modQ(t + w[j + len])
-                    w[j + len] = Dilithium.modQ(t - w[j + len])
-                    w[j + len] = Dilithium.modQ(z * w[j + len])
+        w.withUnsafeMutableBufferPointer { wU in
+            while len < 256 {
+                var start = 0
+                while start < 256 {
+                    m -= 1
+                    let z = -Polynomial.zetas[m]
+                    for j in start ..< start + len {
+                        let t = wU[j]
+                        wU[j] = Dilithium.modQ(t + wU[j + len])
+                        wU[j + len] = Dilithium.modQ(t - wU[j + len])
+                        wU[j + len] = Dilithium.modQ(z * wU[j + len])
+                    }
+                    start += len << 1
                 }
-                start += len << 1
+                len <<= 1
             }
-            len <<= 1
-        }
-        for j in 0 ..< 256 {
-            w[j] = Dilithium.modQ(w[j] * 8347681)  // 8347681 = 256^-1 mod Q
+            for j in 0 ..< 256 {
+                wU[j] = Dilithium.modQ(wU[j] * 8347681)  // 8347681 = 256^-1 mod Q
+            }
         }
         return Polynomial(w)
     }

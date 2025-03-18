@@ -21,7 +21,7 @@ To use SwiftDilithium, in your project *Package.swift* file add a dependency lik
 
 ```swift
 dependencies: [
-  .package(url: "https://github.com/leif-ibsen/SwiftDilithium", from: "3.1.0"),
+  .package(url: "https://github.com/leif-ibsen/SwiftDilithium", from: "3.2.0"),
 ]
 ```
 
@@ -29,9 +29,9 @@ SwiftDilithium itself depends on the [ASN1](https://leif-ibsen.github.io/ASN1/do
 
 ```swift
 dependencies: [
-  .package(url: "https://github.com/leif-ibsen/ASN1", from: "2.6.0"),
-  .package(url: "https://github.com/leif-ibsen/BigInt", from: "1.19.0"),
-  .package(url: "https://github.com/leif-ibsen/Digest", from: "1.8.0"),
+  .package(url: "https://github.com/leif-ibsen/ASN1", from: "2.7.0"),
+  .package(url: "https://github.com/leif-ibsen/BigInt", from: "1.21.0"),
+  .package(url: "https://github.com/leif-ibsen/Digest", from: "1.12.0"),
 ],
 ```
 
