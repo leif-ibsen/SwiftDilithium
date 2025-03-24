@@ -21,7 +21,7 @@ To use SwiftDilithium, in your project *Package.swift* file add a dependency lik
 
 ```swift
 dependencies: [
-  .package(url: "https://github.com/leif-ibsen/SwiftDilithium", from: "3.2.0"),
+  .package(url: "https://github.com/leif-ibsen/SwiftDilithium", from: "3.3.0"),
 ]
 ```
 

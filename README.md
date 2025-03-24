@@ -19,4 +19,4 @@ https://leif-ibsen.github.io/SwiftDilithium/documentation/swiftdilithium
 
 The documentation is also available in the *SwiftDilithium.doccarchive* file.
 
-The KAT test vectors come from GitHub ACVP-server release 1.1.0.35.
+The KAT test vectors come from NIST ACVP-server version 1.1.0.38 to comply with the final specification.

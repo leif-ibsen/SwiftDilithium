@@ -146,18 +146,36 @@ public struct Dilithium {
         var OID: Bytes
         var phM: Bytes
         switch PH {
-        case .SHA256:
-            OID = [0, 6, 9, 96, 134, 72, 1, 101, 3, 4, 2, 1]
+        case .SHA2_224:
+            OID = [6, 9, 96, 134, 72, 1, 101, 3, 4, 2, 4]
+            phM = MessageDigest(.SHA2_224).digest(M)
+        case .SHA2_256, .SHA256:
+            OID = [6, 9, 96, 134, 72, 1, 101, 3, 4, 2, 1]
             phM = MessageDigest(.SHA2_256).digest(M)
-        case .SHA512:
-            OID = [0, 6, 9, 96, 134, 72, 1, 101, 3, 4, 2, 3]
+        case .SHA2_384:
+            OID = [6, 9, 96, 134, 72, 1, 101, 3, 4, 2, 2]
+            phM = MessageDigest(.SHA2_384).digest(M)
+        case .SHA2_512, .SHA512:
+            OID = [6, 9, 96, 134, 72, 1, 101, 3, 4, 2, 3]
             phM = MessageDigest(.SHA2_512).digest(M)
+        case .SHA3_224:
+            OID = [6, 9, 96, 134, 72, 1, 101, 3, 4, 2, 7]
+            phM = MessageDigest(.SHA3_224).digest(M)
+        case .SHA3_256:
+            OID = [6, 9, 96, 134, 72, 1, 101, 3, 4, 2, 8]
+            phM = MessageDigest(.SHA3_256).digest(M)
+        case .SHA3_384:
+            OID = [6, 9, 96, 134, 72, 1, 101, 3, 4, 2, 9]
+            phM = MessageDigest(.SHA3_384).digest(M)
+        case .SHA3_512:
+            OID = [6, 9, 96, 134, 72, 1, 101, 3, 4, 2, 10]
+            phM = MessageDigest(.SHA3_512).digest(M)
         case .SHAKE128:
-            OID = [0, 6, 9, 96, 134, 72, 1, 101, 3, 4, 2, 11]
-            phM = XOF(.XOF128, M).read(256)
+            OID = [6, 9, 96, 134, 72, 1, 101, 3, 4, 2, 11]
+            phM = XOF(.XOF128, M).read(32)
         case .SHAKE256:
-            OID = [0, 6, 9, 96, 134, 72, 1, 101, 3, 4, 2, 12]
-            phM = XOF(.XOF256, M).read(512)
+            OID = [6, 9, 96, 134, 72, 1, 101, 3, 4, 2, 12]
+            phM = XOF(.XOF256, M).read(64)
         }
         let M1: Bytes = [1] + [Byte(ctx.count)] + ctx + OID + phM
         return SignInternal(sk, M1, randomize ? Dilithium.randomBytes(32) : Bytes(repeating: 0, count: 32), aHat)
@@ -170,18 +188,36 @@ public struct Dilithium {
         var OID: Bytes
         var phM: Bytes
         switch PH {
-        case .SHA256:
-            OID = [0, 6, 9, 96, 134, 72, 1, 101, 3, 4, 2, 1]
+        case .SHA2_224:
+            OID = [6, 9, 96, 134, 72, 1, 101, 3, 4, 2, 4]
+            phM = MessageDigest(.SHA2_224).digest(M)
+        case .SHA2_256, .SHA256:
+            OID = [6, 9, 96, 134, 72, 1, 101, 3, 4, 2, 1]
             phM = MessageDigest(.SHA2_256).digest(M)
-        case .SHA512:
-            OID = [0, 6, 9, 96, 134, 72, 1, 101, 3, 4, 2, 3]
+        case .SHA2_384:
+            OID = [6, 9, 96, 134, 72, 1, 101, 3, 4, 2, 2]
+            phM = MessageDigest(.SHA2_384).digest(M)
+        case .SHA2_512, .SHA512:
+            OID = [6, 9, 96, 134, 72, 1, 101, 3, 4, 2, 3]
             phM = MessageDigest(.SHA2_512).digest(M)
+        case .SHA3_224:
+            OID = [6, 9, 96, 134, 72, 1, 101, 3, 4, 2, 7]
+            phM = MessageDigest(.SHA3_224).digest(M)
+        case .SHA3_256:
+            OID = [6, 9, 96, 134, 72, 1, 101, 3, 4, 2, 8]
+            phM = MessageDigest(.SHA3_256).digest(M)
+        case .SHA3_384:
+            OID = [6, 9, 96, 134, 72, 1, 101, 3, 4, 2, 9]
+            phM = MessageDigest(.SHA3_384).digest(M)
+        case .SHA3_512:
+            OID = [6, 9, 96, 134, 72, 1, 101, 3, 4, 2, 10]
+            phM = MessageDigest(.SHA3_512).digest(M)
         case .SHAKE128:
-            OID = [0, 6, 9, 96, 134, 72, 1, 101, 3, 4, 2, 11]
-            phM = XOF(.XOF128, M).read(256)
+            OID = [6, 9, 96, 134, 72, 1, 101, 3, 4, 2, 11]
+            phM = XOF(.XOF128, M).read(32)
         case .SHAKE256:
-            OID = [0, 6, 9, 96, 134, 72, 1, 101, 3, 4, 2, 12]
-            phM = XOF(.XOF256, M).read(512)
+            OID = [6, 9, 96, 134, 72, 1, 101, 3, 4, 2, 12]
+            phM = XOF(.XOF256, M).read(64)
         }
         let M1: Bytes = [1] + [Byte(ctx.count)] + ctx + OID + phM
         return VerifyInternal(pk, M1, sigma, aHat)
