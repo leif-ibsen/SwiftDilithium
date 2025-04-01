@@ -26,11 +26,6 @@ let package = Package(
         .testTarget(
             name: "SwiftDilithiumTests",
             dependencies: ["SwiftDilithium"],
-            resources: [.copy("Resources/kat44KeyGen.rsp"), .copy("Resources/kat44Sign.rsp"), .copy("Resources/kat44Verify.rsp"),
-                        .copy("Resources/kat44HashSign.rsp"), .copy("Resources/kat44HashVerify.rsp"),
-                        .copy("Resources/kat65KeyGen.rsp"), .copy("Resources/kat65Sign.rsp"), .copy("Resources/kat65Verify.rsp"),
-                        .copy("Resources/kat65HashSign.rsp"), .copy("Resources/kat65HashVerify.rsp"),
-                        .copy("Resources/kat87KeyGen.rsp"), .copy("Resources/kat87Sign.rsp"), .copy("Resources/kat87Verify.rsp"),
-                        .copy("Resources/kat87HashSign.rsp"), .copy("Resources/kat87HashVerify.rsp")]),
+            resources: [.copy("Resources/katTestKeyGen.rsp"), .copy("Resources/katTestSign.rsp"), .copy("Resources/katTestVerify.rsp")]),
     ]
 )
