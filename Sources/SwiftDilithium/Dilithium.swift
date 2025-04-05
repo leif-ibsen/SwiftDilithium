@@ -158,6 +158,12 @@ public struct Dilithium {
         case .SHA2_512, .SHA512:
             OID = [6, 9, 96, 134, 72, 1, 101, 3, 4, 2, 3]
             phM = MessageDigest(.SHA2_512).digest(M)
+        case .SHA2_512_224:
+            OID = [6, 9, 96, 134, 72, 1, 101, 3, 4, 2, 5]
+            phM = MessageDigest(.SHA2_512_224).digest(M)
+        case .SHA2_512_256:
+            OID = [6, 9, 96, 134, 72, 1, 101, 3, 4, 2, 6]
+            phM = MessageDigest(.SHA2_512_256).digest(M)
         case .SHA3_224:
             OID = [6, 9, 96, 134, 72, 1, 101, 3, 4, 2, 7]
             phM = MessageDigest(.SHA3_224).digest(M)
@@ -200,6 +206,12 @@ public struct Dilithium {
         case .SHA2_512, .SHA512:
             OID = [6, 9, 96, 134, 72, 1, 101, 3, 4, 2, 3]
             phM = MessageDigest(.SHA2_512).digest(M)
+        case .SHA2_512_224:
+            OID = [6, 9, 96, 134, 72, 1, 101, 3, 4, 2, 5]
+            phM = MessageDigest(.SHA2_512_224).digest(M)
+        case .SHA2_512_256:
+            OID = [6, 9, 96, 134, 72, 1, 101, 3, 4, 2, 6]
+            phM = MessageDigest(.SHA2_512_256).digest(M)
         case .SHA3_224:
             OID = [6, 9, 96, 134, 72, 1, 101, 3, 4, 2, 7]
             phM = MessageDigest(.SHA3_224).digest(M)

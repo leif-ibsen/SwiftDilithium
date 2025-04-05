@@ -19,6 +19,12 @@ public enum PreHash {
     
     /// SHA2-512 message digest
     case SHA2_512
+    
+    /// SHA2-512/224 message digest
+    case SHA2_512_224
+    
+    /// SHA2-512/256 message digest
+    case SHA2_512_256
 
     /// SHA3-224 message digest
     case SHA3_224
