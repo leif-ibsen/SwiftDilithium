@@ -14,7 +14,7 @@ let package = Package(
     dependencies: [
         // Dependencies declare other packages that this package depends on.
   		.package(url: "https://github.com/leif-ibsen/ASN1", from: "2.7.0"),
-  		.package(url: "https://github.com/leif-ibsen/BigInt", from: "1.21.0"),
+  		.package(url: "https://github.com/leif-ibsen/BigInt", from: "1.23.0"),
   		.package(url: "https://github.com/leif-ibsen/Digest", from: "1.13.0"),
     ],
     targets: [
@@ -26,6 +26,6 @@ let package = Package(
         .testTarget(
             name: "SwiftDilithiumTests",
             dependencies: ["SwiftDilithium"],
-            resources: [.copy("Resources/katTestKeyGen.rsp"), .copy("Resources/katTestSign.rsp"), .copy("Resources/katTestVerify.rsp")]),
+            resources: [.copy("Resources/katTestKeyGen.rsp"), .copy("Resources/katTestSign.rsp"), .copy("Resources/katTestVerify.rsp"), .copy("Resources/wycheproofVerify.rsp"), .copy("Resources/wycheproofSign.rsp")]),
     ]
 )

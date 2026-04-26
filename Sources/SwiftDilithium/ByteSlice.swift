@@ -7,18 +7,17 @@
 
 struct ByteSlice {
     
-    var array: Bytes
+    let slice: ArraySlice<Byte>
     var from: Int
     
     init(_ array: Bytes) {
-        self.array = array
+        self.slice = array[0 ..< array.count]
         self.from = 0
     }
     
     mutating func next(_ n: Int) -> Bytes {
-        let bytes = Bytes(self.array[self.from ..< self.from + n])
         self.from += n
-        return bytes
+        return Bytes(self.slice[self.from - n ..< self.from])
     }
     
 }

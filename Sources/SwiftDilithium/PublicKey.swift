@@ -114,12 +114,8 @@ public struct PublicKey: CustomStringConvertible, Equatable {
     ///   - signature: The signature to verify
     ///   - context: The context string
     /// - Returns: `true` if the signature is verified, else `false`
-    /// - Throws: An exception if the context size is larger than 255
-    public func Verify(message: Bytes, signature: Bytes, context: Bytes) throws -> Bool {        
-        guard context.count < 256 else {
-            throw Exception.contextSize(value: context.count)
-        }
-        guard signature.count == self.signatureSize else {
+    public func Verify(message: Bytes, signature: Bytes, context: Bytes) -> Bool {
+        guard signature.count == self.signatureSize && context.count < 256 else {
             return false
         }
         return self.dilithium.Verify(self.keyBytes, message, signature, context, self.aHat)

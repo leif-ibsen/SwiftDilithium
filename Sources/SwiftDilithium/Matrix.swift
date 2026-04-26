@@ -24,7 +24,7 @@ struct Matrix: Equatable {
         var x = Vector(m.r)
         for i in 0 ..< m.r {
             for j in 0 ..< m.c {
-                x.polynomial[i] += m.vector[i].polynomial[j] * v.polynomial[j]
+                x[i] += m.vector[i][j] * v[j]
             }
         }
         return x

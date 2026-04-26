@@ -19,7 +19,7 @@ struct Vector: Equatable {
     func NTT() -> Vector {
         var v = Vector(self.n)
         for i in 0 ..< self.n {
-            v.polynomial[i] = self.polynomial[i].NTT()
+            v[i] = self[i].NTT()
         }
         return v
     }
@@ -28,7 +28,7 @@ struct Vector: Equatable {
     func INTT() -> Vector {
         var v = Vector(self.n)
         for i in 0 ..< self.n {
-            v.polynomial[i] = self.polynomial[i].INTT()
+            v[i] = self[i].INTT()
         }
         return v
     }
@@ -36,7 +36,7 @@ struct Vector: Equatable {
     func modPMQ() -> Vector {
         var v = Vector(self.n)
         for i in 0 ..< self.n {
-            v.polynomial[i] = self.polynomial[i].modPMQ()
+            v[i] = self[i].modPMQ()
         }
         return v
     }
@@ -44,14 +44,14 @@ struct Vector: Equatable {
     func OneCount() -> Int {
         var x = 0
         for i in 0 ..< self.n {
-            x += self.polynomial[i].OneCount()
+            x += self[i].OneCount()
         }
         return x
     }
 
     func checkNorm(_ limit: Int) -> Bool {
         for i in 0 ..< self.n {
-            if self.polynomial[i].checkNorm(limit) {
+            if self[i].checkNorm(limit) {
                 return true
             }
         }
@@ -63,7 +63,7 @@ struct Vector: Equatable {
         assert(v1.n == v2.n)
         var sum = Vector(v1.n)
         for i in 0 ..< sum.n {
-            sum.polynomial[i] = v1.polynomial[i] + v2.polynomial[i]
+            sum[i] = v1[i] + v2[i]
         }
         return sum
     }
@@ -72,7 +72,7 @@ struct Vector: Equatable {
     static prefix func -(v: Vector) -> Vector {
         var x = Vector(v.n)
         for i in 0 ..< v.n {
-            x.polynomial[i] = -v.polynomial[i]
+            x[i] = -v[i]
         }
         return x
     }
@@ -82,7 +82,7 @@ struct Vector: Equatable {
         assert(v1.n == v2.n)
         var diff = Vector(v1.n)
         for i in 0 ..< diff.n {
-            diff.polynomial[i] = v1.polynomial[i] - v2.polynomial[i]
+            diff[i] = v1[i] - v2[i]
         }
         return diff
     }
@@ -91,7 +91,7 @@ struct Vector: Equatable {
     static func *(_ p: Polynomial, _ v: Vector) -> Vector {
         var x = Vector(v.n)
         for i in 0 ..< x.n {
-            x.polynomial[i] = p * v.polynomial[i]
+            x[i] = p * v[i]
         }
         return x
     }
@@ -100,9 +100,21 @@ struct Vector: Equatable {
     static func *(_ v: Vector, _ d: Int) -> Vector {
         var x = Vector(v.n)
         for i in 0 ..< x.n {
-            x.polynomial[i] = v.polynomial[i] * d
+            x[i] = v[i] * d
         }
         return x
     }
 
+}
+
+extension Vector {
+    
+    subscript(i: Int) -> Polynomial {
+        get {
+            return self.polynomial[i]
+        }
+        set {
+            self.polynomial[i] = newValue
+        }
+    }
 }

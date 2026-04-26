@@ -20,3 +20,6 @@ https://leif-ibsen.github.io/SwiftDilithium/documentation/swiftdilithium
 The documentation is also available in the *SwiftDilithium.doccarchive* file.
 
 The KAT test vectors come from NIST ACVP-server version 1.1.0.38 to comply with the final specification.
+
+SwiftDilithium passes a number of test cases from the Wycheproof project.
+They primarily test various edge cases and error situations.

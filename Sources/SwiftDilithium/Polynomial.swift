@@ -7,10 +7,10 @@
 
 struct Polynomial: Equatable {
 
-    // 1753 ^ BitRev8(k) % Q for k in 1 ..< 256
+    // 1753 ^ BitRev8(k) % Q for k in 0 ..< 256
     // From [FIPS 204] - Appendix B
     static let zetas = [
-                0, 4808194, 3765607, 3761513, 5178923, 5496691, 5234739, 5178987,
+                1, 4808194, 3765607, 3761513, 5178923, 5496691, 5234739, 5178987,
           7778734, 3542485, 2682288, 2129892, 3764867, 7375178,  557458, 7159240,
           5010068, 4317364, 2663378, 6705802, 4855975, 7946292,  676590, 7044481,
           5152541, 1714295, 2453983, 1460718, 7737789, 4795319, 2815639, 2283733,
@@ -189,4 +189,16 @@ struct Polynomial: Equatable {
         return x
     }
 
+}
+
+extension Polynomial {
+    
+    subscript(i: Int) -> Int {
+        get {
+            return self.coef[i]
+        }
+        set {
+            self.coef[i] = newValue
+        }
+    }
 }
